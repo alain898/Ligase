@@ -77,7 +77,7 @@ func (c *OutputRoomEventConsumer) Start() error {
 // onMessage is called when the sync server receives a new event from the room server output log.
 // It is not safe for this function to be called from multiple goroutines, or else the
 // sync stream position may race and be incorrectly calculated.
-func (c *OutputRoomEventConsumer) OnMessage(ctx context.Context, topic string, partition int32, data []byte, rawMsg interface{}) {
+func (c *OutputRoomEventConsumer) OnMessage(topic string, partition int32, data []byte) {
 	// Parse out the event JSON
 	var output roomserverapi.OutputEvent
 	if err := json.Unmarshal(data, &output); err != nil {
