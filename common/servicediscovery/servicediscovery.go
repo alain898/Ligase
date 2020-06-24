@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// @NotThreadSafe
 type ZKClient struct {
 	zkServers []string // 多个节点地址
 	zkRoot    string   // 服务根节点，这里是/api
@@ -93,6 +94,22 @@ func (s *ZKClient) Register(service string, topicPrefix string) (string, error) 
 		return "", err
 	}
 	return topic, nil
+}
+
+func (s *ZKClient) Deregister(service string, topic string) error {
+	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
+	_, stat, err := s.conn.Get(path)
+	if err != nil {
+		log.Errorf("failed to get stat, service[%s], topic[%s]", service, topic)
+		return err
+	}
+	err = s.conn.Delete(path, stat.Aversion)
+	if err != nil {
+		log.Errorf("failed to delete path[%s]", path)
+		return err
+	}
+	log.Infof("succeed to deregister service[%s], topic[%s]", service, topic)
+	return nil
 }
 
 func (s *ZKClient) GetNodes(name string) ([]*Endpoint, error) {
