@@ -28,7 +28,7 @@ var lock = NewLocalLocker()
 
 func doTest() {
 	servers := []string{"127.0.0.1:2181"}
-	client, err := NewDSClient(servers, "/servicediscovery", 10, &lock)
+	client, err := NewDSClient(servers, "/servicediscovery", 10, lock)
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +46,7 @@ func doTest() {
 
 func TestServiceDiscovery(t *testing.T) {
 	servers := []string{"127.0.0.1:2181"}
-	client, err := NewDSClient(servers, "/servicediscovery", 10, &lock)
+	client, err := NewDSClient(servers, "/servicediscovery", 10, lock)
 	if err != nil {
 		panic(err)
 	}

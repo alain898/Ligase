@@ -30,22 +30,22 @@ type DSClient struct {
 }
 
 type wrapLocker struct {
-	locker *Locker
+	locker Locker
 }
 
 func (wl *wrapLocker) Lock() {
 	if wl.locker != nil {
-		(*wl.locker).Lock()
+		wl.locker.Lock()
 	}
 }
 
 func (wl *wrapLocker) UnLock() {
 	if wl.locker != nil {
-		(*wl.locker).UnLock()
+		wl.locker.UnLock()
 	}
 }
 
-func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker *Locker) (*DSClient, error) {
+func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker Locker) (*DSClient, error) {
 	client := new(DSClient)
 	client.zkServers = zkServers
 	client.zkRoot = zkRoot
