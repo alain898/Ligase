@@ -244,15 +244,11 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 				endpoints, err := s.ListEndpoint(service)
 				if err != nil {
 					log.Errorf("failed to list endpoint, service[%s]", service)
+				} else {
+					handler(endpoints)
 				}
-				handler(endpoints)
 			case err := <-errorsRes:
 				log.Infof("watch err[%v]", err)
-				endpoints, err := s.ListEndpoint(service)
-				if err != nil {
-					log.Errorf("failed to list endpoint, service[%s]", service)
-				}
-				handler(endpoints)
 			}
 		}
 	}()
