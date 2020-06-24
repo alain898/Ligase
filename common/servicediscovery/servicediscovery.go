@@ -21,7 +21,7 @@ type Locker interface {
 	UnLock()
 }
 
-// DSClient is not concurrency safe, so please use a extra dist lock to ensure concurrency safe when it's necessary.
+// DSClient is not concurrency safe, so please use a extra distribute lock to ensure concurrency safe when it's necessary.
 type DSClient struct {
 	zkServers []string // zookeeper servers
 	zkRoot    string   // root path for store the meta data for service discovery
