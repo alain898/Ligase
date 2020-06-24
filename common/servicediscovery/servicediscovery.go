@@ -16,17 +16,40 @@ var (
 	splitSign = "___"
 )
 
+type Locker interface {
+	Lock()
+	UnLock()
+}
+
 // DSClient is not concurrency safe, so please use a extra dist lock to ensure concurrency safe when it's necessary.
 type DSClient struct {
 	zkServers []string // zookeeper servers
 	zkRoot    string   // root path for store the meta data for service discovery
 	conn      *zk.Conn // zookeeper client connect
+	locker    wrapLocker
 }
 
-func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int) (*DSClient, error) {
+type wrapLocker struct {
+	locker *Locker
+}
+
+func (wl *wrapLocker) Lock() {
+	if wl.locker != nil {
+		(*wl.locker).Lock()
+	}
+}
+
+func (wl *wrapLocker) UnLock() {
+	if wl.locker != nil {
+		(*wl.locker).UnLock()
+	}
+}
+
+func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker *Locker) (*DSClient, error) {
 	client := new(DSClient)
 	client.zkServers = zkServers
 	client.zkRoot = zkRoot
+	client.locker = wrapLocker{locker: locker}
 	conn, _, err := zk.Connect(zkServers, time.Duration(timeoutSeconds)*time.Second)
 	if err != nil {
 		return nil, err
@@ -121,6 +144,8 @@ func (s *DSClient) genIndex(indexList []int64) int64 {
 }
 
 func (s *DSClient) Register(service string, topicPrefix string) (string, error) {
+	s.locker.Lock()
+	defer s.locker.UnLock()
 	if topicPrefix == "" {
 		topicPrefix = service
 	}
@@ -128,7 +153,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to create node, service[%s], topicPrefix[%s]", service, topicPrefix)
 		return "", err
 	}
-	endpoints, err := s.ListEndpoint(service)
+	endpoints, err := s.listEndpoint(service)
 	if err != nil {
 		log.Errorf("failed to list endpoint, service[%s]", service)
 		return "", err
@@ -159,6 +184,8 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 }
 
 func (s *DSClient) Deregister(service string, topic string) error {
+	s.locker.Lock()
+	defer s.locker.UnLock()
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	_, stat, err := s.conn.Get(path)
 	if err != nil {
@@ -174,7 +201,7 @@ func (s *DSClient) Deregister(service string, topic string) error {
 	return nil
 }
 
-func (s *DSClient) ListEndpoint(service string) ([]*Endpoint, error) {
+func (s *DSClient) listEndpoint(service string) ([]*Endpoint, error) {
 	if service == "" {
 		return nil, errors.New("service is empty")
 	}
@@ -231,6 +258,8 @@ func (s *DSClient) watchPath(path string) (chan []string, chan error) {
 type WatchHandler func(endpoints []*Endpoint)
 
 func (s *DSClient) Watch(service string, handler WatchHandler) error {
+	s.locker.Lock()
+	defer s.locker.UnLock()
 	if service == "" {
 		return errors.New("service is empty")
 	}
@@ -241,12 +270,16 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 			select {
 			case children := <-childrenRes:
 				log.Infof("watch changed children[%v]", children)
-				endpoints, err := s.ListEndpoint(service)
-				if err != nil {
-					log.Errorf("failed to list endpoint, service[%s]", service)
-				} else {
-					handler(endpoints)
-				}
+				func() {
+					s.locker.Lock()
+					defer s.locker.UnLock()
+					endpoints, err := s.listEndpoint(service)
+					if err != nil {
+						log.Errorf("failed to list endpoint, service[%s]", service)
+					} else {
+						handler(endpoints)
+					}
+				}()
 			case err := <-errorsRes:
 				log.Infof("watch err[%v]", err)
 			}
