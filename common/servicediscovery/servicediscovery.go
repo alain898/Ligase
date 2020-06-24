@@ -73,7 +73,7 @@ func (s *DSClient) createNodeIfNotExist(name string) error {
 }
 
 type Endpoint struct {
-	Service string `json:"service"` // 服务名称，这里是user
+	Service string `json:"service"`
 	Topic   string `json:"topic"`
 }
 
