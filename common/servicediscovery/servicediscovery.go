@@ -176,7 +176,7 @@ func (s *DSClient) Deregister(service string, topic string) error {
 
 func (s *DSClient) ListEndpoint(service string) ([]*Endpoint, error) {
 	if service == "" {
-		return nil, errors.New("name is empty")
+		return nil, errors.New("service is empty")
 	}
 	path := fmt.Sprintf("%s/%s", s.zkRoot, service)
 	children, _, err := s.conn.Children(path)
@@ -204,4 +204,57 @@ func (s *DSClient) ListEndpoint(service string) ([]*Endpoint, error) {
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
+}
+
+func (s *DSClient) watchPath(path string) (chan []string, chan error) {
+	childrenRes := make(chan []string)
+	errorsRes := make(chan error)
+
+	go func() {
+		for {
+			children, _, events, err := s.conn.ChildrenW(path)
+			if err != nil {
+				errorsRes <- err
+				return
+			}
+			childrenRes <- children
+			evt := <-events
+			if evt.Err != nil {
+				errorsRes <- evt.Err
+				return
+			}
+		}
+	}()
+	return childrenRes, errorsRes
+}
+
+type WatchHandler func(endpoints []*Endpoint)
+
+func (s *DSClient) Watch(service string, handler WatchHandler) error {
+	if service == "" {
+		return errors.New("service is empty")
+	}
+	path := fmt.Sprintf("%s/%s", s.zkRoot, service)
+	childrenRes, errorsRes := s.watchPath(path)
+	go func() {
+		for {
+			select {
+			case children := <-childrenRes:
+				log.Infof("watch changed children[%v]", children)
+				endpoints, err := s.ListEndpoint(service)
+				if err != nil {
+					log.Errorf("failed to list endpoint, service[%s]", service)
+				}
+				handler(endpoints)
+			case err := <-errorsRes:
+				log.Infof("watch err[%v]", err)
+				endpoints, err := s.ListEndpoint(service)
+				if err != nil {
+					log.Errorf("failed to list endpoint, service[%s]", service)
+				}
+				handler(endpoints)
+			}
+		}
+	}()
+	return nil
 }
