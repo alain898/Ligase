@@ -6,7 +6,14 @@ import (
 	"github.com/finogeeks/ligase/skunkworks/log"
 	"github.com/samuel/go-zookeeper/zk"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
+)
+
+var (
+	splitSign = "___"
 )
 
 // DSClient is not concurrency safe, so please use a extra dist lock to ensure concurrency safe when it's necessary.
@@ -70,6 +77,49 @@ type Endpoint struct {
 	Topic   string `json:"topic"`
 }
 
+func (s *DSClient) contains(list []int64, e int64) bool {
+	for _, a := range list {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *DSClient) getEndpointIndex(endpoints []*Endpoint) ([]int64, error) {
+	if endpoints == nil {
+		return nil, errors.New("endpoints is nil")
+	}
+	indexList := make([]int64, len(endpoints))
+	for _, ep := range endpoints {
+		splits := strings.Split(ep.Topic, splitSign)
+		if len(splits) != 2 {
+			err := fmt.Sprintf("invalid topic[%s], service[%s]", ep.Topic, ep.Service)
+			log.Errorf(err)
+			return nil, errors.New(err)
+		}
+		index, err := strconv.ParseInt(splits[1], 10, 0)
+		if err != nil {
+			log.Errorf("failed to parse index[%s]", splits[1])
+			return nil, err
+		}
+		indexList = append(indexList, index)
+	}
+	sort.Slice(indexList, func(i, j int) bool { return indexList[i] < indexList[j] })
+	return indexList, nil
+}
+
+func (s *DSClient) genIndex(indexList []int64) int64 {
+	if indexList == nil {
+		return 0
+	}
+	for i := int64(0); ; i++ {
+		if !s.contains(indexList, i) {
+			return i
+		}
+	}
+}
+
 func (s *DSClient) Register(service string, topicPrefix string) (string, error) {
 	if topicPrefix == "" {
 		topicPrefix = service
@@ -83,9 +133,15 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to list endpoint, service[%s]", service)
 		return "", err
 	}
-	topic := fmt.Sprint("%s___$d", topicPrefix, 0)
+	topic := fmt.Sprint("%s%s$d", topicPrefix, splitSign, 0)
 	if len(endpoints) != 0 {
-		// todo: gen topic by existed topics
+		indexList, err := s.getEndpointIndex(endpoints)
+		if err != nil {
+			log.Errorf("failed to parse index for endpoints[%v]", endpoints)
+			return "", err
+		}
+		topicIndex := s.genIndex(indexList)
+		topic = fmt.Sprint("%s%s$d", topicPrefix, splitSign, topicIndex)
 	}
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	endpoint := Endpoint{Service: service, Topic: topic}
