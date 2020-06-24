@@ -2,6 +2,7 @@ package servicediscovery
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/finogeeks/ligase/skunkworks/log"
 	"github.com/samuel/go-zookeeper/zk"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/fmt"
@@ -24,7 +25,6 @@ func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int) (*DSClie
 		return nil, err
 	}
 	client.conn = conn
-	// 创建服务根节点
 	if err := client.createRootIfNotExist(); err != nil {
 		client.Close()
 		return nil, err
@@ -32,7 +32,6 @@ func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int) (*DSClie
 	return client, nil
 }
 
-// 关闭连接，释放临时节点
 func (s *DSClient) Close() {
 	s.conn.Close()
 }
@@ -111,9 +110,11 @@ func (s *DSClient) Deregister(service string, topic string) error {
 	return nil
 }
 
-func (s *DSClient) GetNodes(name string) ([]*Endpoint, error) {
-	path := s.zkRoot + "/" + name
-	// 获取字节点名称
+func (s *DSClient) ListEndpoint(service string) ([]*Endpoint, error) {
+	if service == "" {
+		return nil, errors.New("name is empty")
+	}
+	path := fmt.Sprintf("%s/%s", s.zkRoot, service)
 	children, _, err := s.conn.Children(path)
 	if err != nil {
 		if err == zk.ErrNoNode {
