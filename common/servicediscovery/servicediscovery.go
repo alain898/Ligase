@@ -78,7 +78,15 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to create node, service[%s], topicPrefix[%s]", service, topicPrefix)
 		return "", err
 	}
-	topic := fmt.Sprint("%s___$d", topicPrefix, 0) // todo: gen topic by existed topics
+	endpoints, err := s.ListEndpoint(service)
+	if err != nil {
+		log.Errorf("failed to list endpoint, service[%s]", service)
+		return "", err
+	}
+	topic := fmt.Sprint("%s___$d", topicPrefix, 0)
+	if len(endpoints) != 0 {
+		// todo: gen topic by existed topics
+	}
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	endpoint := Endpoint{Service: service, Topic: topic}
 	data, err := json.Marshal(endpoint)
