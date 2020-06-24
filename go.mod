@@ -24,7 +24,7 @@ require (
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.6.0
-	github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da // indirect
+	github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smallnest/gofsm v0.0.0-20190306032117-f5ba1bddca7b
 	github.com/stretchr/testify v1.4.0
@@ -36,6 +36,7 @@ require (
 	go.uber.org/atomic v1.6.0
 	go.uber.org/multierr v1.5.0
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
+	golang.org/x/tools v0.0.0-20191029190741-b9c20aec41a5
 	google.golang.org/appengine v1.6.6 // indirect
 	gopkg.in/confluentinc/confluent-kafka-go.v1 v1.1.0
 	gopkg.in/macaroon.v2 v2.1.0

@@ -3,9 +3,9 @@ package servicediscovery
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/finogeeks/ligase/skunkworks/log"
 	"github.com/samuel/go-zookeeper/zk"
-	"golang.org/x/tools/go/ssa/interp/testdata/src/fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -113,7 +113,7 @@ func (s *DSClient) getEndpointIndex(endpoints []*Endpoint) ([]int64, error) {
 	if endpoints == nil {
 		return nil, errors.New("endpoints is nil")
 	}
-	indexList := make([]int64, len(endpoints))
+	var indexList []int64
 	for _, ep := range endpoints {
 		splits := strings.Split(ep.Topic, splitSign)
 		if len(splits) != 2 {
@@ -158,7 +158,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to list endpoint, service[%s]", service)
 		return "", err
 	}
-	topic := fmt.Sprint("%s%s$d", topicPrefix, splitSign, 0)
+	topic := fmt.Sprintf("%s%s%d", topicPrefix, splitSign, 0)
 	if len(endpoints) != 0 {
 		indexList, err := s.getEndpointIndex(endpoints)
 		if err != nil {
@@ -166,7 +166,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 			return "", err
 		}
 		topicIndex := s.genIndex(indexList)
-		topic = fmt.Sprint("%s%s$d", topicPrefix, splitSign, topicIndex)
+		topic = fmt.Sprintf("%s%s%d", topicPrefix, splitSign, topicIndex)
 	}
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	endpoint := Endpoint{Service: service, Topic: topic}
@@ -213,7 +213,7 @@ func (s *DSClient) listEndpoint(service string) ([]*Endpoint, error) {
 		}
 		return nil, err
 	}
-	nodes := make([]*Endpoint, len(children))
+	var nodes []*Endpoint
 	for _, child := range children {
 		fullPath := path + "/" + child
 		data, _, err := s.conn.Get(fullPath)
