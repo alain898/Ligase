@@ -8,18 +8,17 @@ import (
 	"time"
 )
 
-// @NotThreadSafe
-type ZKClient struct {
-	zkServers []string // 多个节点地址
-	zkRoot    string   // 服务根节点，这里是/api
-	conn      *zk.Conn // zk的客户端连接
+// DSClient is not concurrency safe, so please use a extra dist lock to ensure concurrency safe when it's necessary.
+type DSClient struct {
+	zkServers []string // zookeeper servers
+	zkRoot    string   // root path for store the meta data for service discovery
+	conn      *zk.Conn // zookeeper client connect
 }
 
-func NewZKClient(zkServers []string, zkRoot string, timeoutSeconds int) (*ZKClient, error) {
-	client := new(ZKClient)
+func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int) (*DSClient, error) {
+	client := new(DSClient)
 	client.zkServers = zkServers
 	client.zkRoot = zkRoot
-	// 连接服务器
 	conn, _, err := zk.Connect(zkServers, time.Duration(timeoutSeconds)*time.Second)
 	if err != nil {
 		return nil, err
@@ -34,11 +33,11 @@ func NewZKClient(zkServers []string, zkRoot string, timeoutSeconds int) (*ZKClie
 }
 
 // 关闭连接，释放临时节点
-func (s *ZKClient) Close() {
+func (s *DSClient) Close() {
 	s.conn.Close()
 }
 
-func (s *ZKClient) createRootIfNotExist() error {
+func (s *DSClient) createRootIfNotExist() error {
 	exists, _, err := s.conn.Exists(s.zkRoot)
 	if err != nil {
 		return err
@@ -52,7 +51,7 @@ func (s *ZKClient) createRootIfNotExist() error {
 	return nil
 }
 
-func (s *ZKClient) createNodeIfNotExist(name string) error {
+func (s *DSClient) createNodeIfNotExist(name string) error {
 	path := s.zkRoot + "/" + name
 	exists, _, err := s.conn.Exists(path)
 	if err != nil {
@@ -72,7 +71,7 @@ type Endpoint struct {
 	Topic   string `json:"topic"`
 }
 
-func (s *ZKClient) Register(service string, topicPrefix string) (string, error) {
+func (s *DSClient) Register(service string, topicPrefix string) (string, error) {
 	if topicPrefix == "" {
 		topicPrefix = service
 	}
@@ -96,7 +95,7 @@ func (s *ZKClient) Register(service string, topicPrefix string) (string, error) 
 	return topic, nil
 }
 
-func (s *ZKClient) Deregister(service string, topic string) error {
+func (s *DSClient) Deregister(service string, topic string) error {
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	_, stat, err := s.conn.Get(path)
 	if err != nil {
@@ -112,7 +111,7 @@ func (s *ZKClient) Deregister(service string, topic string) error {
 	return nil
 }
 
-func (s *ZKClient) GetNodes(name string) ([]*Endpoint, error) {
+func (s *DSClient) GetNodes(name string) ([]*Endpoint, error) {
 	path := s.zkRoot + "/" + name
 	// 获取字节点名称
 	children, _, err := s.conn.Children(path)
