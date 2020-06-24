@@ -269,7 +269,7 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 		for {
 			select {
 			case children := <-childrenRes:
-				log.Infof("watch changed children[%v]", children)
+				log.Infof("watch changed children[%v], service[%s]", children, service)
 				func() {
 					s.locker.Lock()
 					defer s.locker.UnLock()
@@ -281,7 +281,7 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 					}
 				}()
 			case err := <-errorsRes:
-				log.Infof("watch err[%v]", err)
+				log.Infof("watch err[%+v], service[%s]", err, service)
 			}
 		}
 	}()
