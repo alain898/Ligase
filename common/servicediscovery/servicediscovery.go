@@ -80,8 +80,8 @@ func (s *DSClient) createRootIfNotExist() error {
 	return nil
 }
 
-func (s *DSClient) createNodeIfNotExist(name string) error {
-	path := s.zkRoot + "/" + name
+func (s *DSClient) createServiceIfNotExist(service string) error {
+	path := s.zkRoot + "/" + service
 	exists, _, err := s.conn.Exists(path)
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 	if topicPrefix == "" {
 		topicPrefix = service
 	}
-	if err := s.createNodeIfNotExist(service); err != nil {
+	if err := s.createServiceIfNotExist(service); err != nil {
 		log.Errorf("failed to create node, service[%s], topicPrefix[%s]", service, topicPrefix)
 		return "", err
 	}
