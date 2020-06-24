@@ -2,15 +2,11 @@ package servicediscovery
 
 import (
 	"encoding/json"
+	"github.com/finogeeks/ligase/skunkworks/log"
 	"github.com/samuel/go-zookeeper/zk"
+	"golang.org/x/tools/go/ssa/interp/testdata/src/fmt"
 	"time"
 )
-
-type ServiceNode struct {
-	Name string `json:"name"` // 服务名称，这里是user
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
 
 type ZKClient struct {
 	zkServers []string // 多个节点地址
@@ -70,33 +66,46 @@ func (s *ZKClient) createNodeIfNotExist(name string) error {
 	return nil
 }
 
-func (s *ZKClient) Register(node *ServiceNode) error {
-	if err := s.createNodeIfNotExist(node.Name); err != nil {
-		return err
-	}
-	path := s.zkRoot + "/" + node.Name + "/n"
-	data, err := json.Marshal(node)
-	if err != nil {
-		return err
-	}
-	_, err = s.conn.CreateProtectedEphemeralSequential(path, data, zk.WorldACL(zk.PermAll))
-	if err != nil {
-		return err
-	}
-	return nil
+type Endpoint struct {
+	Service string `json:"service"` // 服务名称，这里是user
+	Topic   string `json:"topic"`
 }
 
-func (s *ZKClient) GetNodes(name string) ([]*ServiceNode, error) {
+func (s *ZKClient) Register(service string, topicPrefix string) (string, error) {
+	if topicPrefix == "" {
+		topicPrefix = service
+	}
+	if err := s.createNodeIfNotExist(service); err != nil {
+		log.Errorf("failed to create node, service[%s], topicPrefix[%s]", service, topicPrefix)
+		return "", err
+	}
+	topic := fmt.Sprint("%s___$d", topicPrefix, 0) // todo: gen topic by existed topics
+	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
+	endpoint := Endpoint{Service: service, Topic: topic}
+	data, err := json.Marshal(endpoint)
+	if err != nil {
+		log.Errorf("failed to marshal endpoint, service[%s], topic[%s]", service, topic)
+		return "", err
+	}
+	_, err = s.conn.Create(path, data, zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+	if err != nil {
+		log.Errorf("failed to create endpoint, service[%s], topic[%s]", service, topic)
+		return "", err
+	}
+	return topic, nil
+}
+
+func (s *ZKClient) GetNodes(name string) ([]*Endpoint, error) {
 	path := s.zkRoot + "/" + name
 	// 获取字节点名称
 	children, _, err := s.conn.Children(path)
 	if err != nil {
 		if err == zk.ErrNoNode {
-			return []*ServiceNode{}, nil
+			return []*Endpoint{}, nil
 		}
 		return nil, err
 	}
-	nodes := make([]*ServiceNode, len(children))
+	nodes := make([]*Endpoint, len(children))
 	for _, child := range children {
 		fullPath := path + "/" + child
 		data, _, err := s.conn.Get(fullPath)
@@ -106,7 +115,7 @@ func (s *ZKClient) GetNodes(name string) ([]*ServiceNode, error) {
 			}
 			return nil, err
 		}
-		node := new(ServiceNode)
+		node := new(Endpoint)
 		err = json.Unmarshal(data, node)
 		if err != nil {
 			return nil, err
