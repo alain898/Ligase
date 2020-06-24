@@ -24,6 +24,7 @@ require (
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.6.0
+	github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smallnest/gofsm v0.0.0-20190306032117-f5ba1bddca7b
 	github.com/stretchr/testify v1.4.0
