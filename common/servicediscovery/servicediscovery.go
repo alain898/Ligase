@@ -162,7 +162,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 	if len(endpoints) != 0 {
 		indexList, err := s.getEndpointIndex(endpoints)
 		if err != nil {
-			log.Errorf("failed to parse index for endpoints[%v]", endpoints)
+			log.Errorf("failed to parse index for endpoints[%+v]", endpoints)
 			return "", err
 		}
 		topicIndex := s.genIndex(indexList)
@@ -269,7 +269,7 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 		for {
 			select {
 			case children := <-childrenRes:
-				log.Infof("watch changed children[%v], service[%s]", children, service)
+				log.Infof("watch changed children[%+v], service[%s]", children, service)
 				func() {
 					s.locker.Lock()
 					defer s.locker.UnLock()
@@ -277,6 +277,7 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 					if err != nil {
 						log.Errorf("failed to list endpoint, service[%s]", service)
 					} else {
+						log.Infof("handler endpoints[%+v]", endpoints)
 						handler(endpoints)
 					}
 				}()
