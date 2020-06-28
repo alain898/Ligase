@@ -304,7 +304,10 @@ func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) (stri
 		}
 		item, _ = sd.SDM.WatcherEndpoints.LoadOrStore(service, endpoints)
 	}
-	endpoints := item.([]string)
+	endpoints, ok := item.([]string)
+	if !ok || len(endpoints) == 0 {
+		return "", errors.New(fmt.Sprintf("failed to get topic for service[%s]", service))
+	}
 	hash := common.CalcStringHashCode(roomId)
 	slot := hash % uint32(len(endpoints))
 	return endpoints[slot], nil
