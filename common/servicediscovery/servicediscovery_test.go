@@ -12,12 +12,14 @@ type LocalLocker struct {
 	locker sync.RWMutex
 }
 
-func (ll *LocalLocker) Lock() {
+func (ll *LocalLocker) Lock() error {
 	ll.locker.Lock()
+	return nil
 }
 
-func (ll *LocalLocker) UnLock() {
+func (ll *LocalLocker) UnLock() error {
 	ll.locker.Unlock()
+	return nil
 }
 
 func NewLocalLocker() Locker {

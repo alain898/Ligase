@@ -17,8 +17,8 @@ var (
 )
 
 type Locker interface {
-	Lock()
-	UnLock()
+	Lock() error
+	UnLock() error
 }
 
 // SDClient is not concurrency safe, so please use a extra distribute lock to ensure concurrency safe when it's necessary.
@@ -33,23 +33,36 @@ type wrapLocker struct {
 	locker Locker
 }
 
-func (wl *wrapLocker) Lock() {
+func (wl *wrapLocker) Lock() error {
 	if wl.locker != nil {
-		wl.locker.Lock()
+		return wl.locker.Lock()
 	}
+	return nil
 }
 
-func (wl *wrapLocker) UnLock() {
+func (wl *wrapLocker) UnLock() error {
 	if wl.locker != nil {
-		wl.locker.UnLock()
+		return wl.locker.UnLock()
 	}
+	return nil
+}
+
+type zkLocker struct {
+	locker *zk.Lock
+}
+
+func (zl *zkLocker) Lock() error {
+	return zl.locker.Lock()
+}
+
+func (zl *zkLocker) UnLock() error {
+	return zl.locker.Unlock()
 }
 
 func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker Locker) (*SDClient, error) {
 	client := new(SDClient)
 	client.zkServers = zkServers
 	client.zkRoot = zkRoot
-	client.locker = wrapLocker{locker: locker}
 	conn, _, err := zk.Connect(zkServers, time.Duration(timeoutSeconds)*time.Second)
 	if err != nil {
 		return nil, err
@@ -58,6 +71,12 @@ func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker L
 	if err := client.createRootIfNotExist(); err != nil {
 		client.Close()
 		return nil, err
+	}
+	if locker != nil {
+		client.locker = wrapLocker{locker: locker}
+	} else {
+		zl := &zkLocker{locker: zk.NewLock(conn, fmt.Sprintf("%s___lock", zkRoot), zk.WorldACL(zk.PermAll))}
+		client.locker = wrapLocker{locker: zl}
 	}
 	return client, nil
 }
@@ -144,8 +163,17 @@ func (s *SDClient) genIndex(indexList []int64) int64 {
 }
 
 func (s *SDClient) Register(service string, topicPrefix string) (string, error) {
-	s.locker.Lock()
-	defer s.locker.UnLock()
+	err := s.locker.Lock()
+	if err == nil {
+		log.Errorf("failed to lock, service[%s], topicPrefix[%s]", service, topicPrefix)
+		return "", err
+	}
+	defer func() {
+		err := s.locker.UnLock()
+		if err == nil {
+			log.Errorf("failed to unlock, service[%s], topicPrefix[%s]", service, topicPrefix)
+		}
+	}()
 	if topicPrefix == "" {
 		topicPrefix = service
 	}
@@ -184,8 +212,17 @@ func (s *SDClient) Register(service string, topicPrefix string) (string, error) 
 }
 
 func (s *SDClient) Deregister(service string, topic string) error {
-	s.locker.Lock()
-	defer s.locker.UnLock()
+	err := s.locker.Lock()
+	if err == nil {
+		log.Errorf("failed to lock, service[%s]", service)
+		return err
+	}
+	defer func() {
+		err := s.locker.UnLock()
+		if err == nil {
+			log.Errorf("failed to unlock, service[%s]", service)
+		}
+	}()
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	_, stat, err := s.conn.Get(path)
 	if err != nil {
@@ -234,8 +271,17 @@ func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
 }
 
 func (s *SDClient) ListEndpoints(service string) ([]*Endpoint, error) {
-	s.locker.Lock()
-	defer s.locker.UnLock()
+	err := s.locker.Lock()
+	if err == nil {
+		log.Errorf("failed to lock, service[%s]", service)
+		return nil, err
+	}
+	defer func() {
+		err := s.locker.UnLock()
+		if err == nil {
+			log.Errorf("failed to unlock, service[%s]", service)
+		}
+	}()
 	if service == "" {
 		return nil, errors.New("service is empty")
 	}
@@ -267,8 +313,17 @@ func (s *SDClient) watchPath(path string) (chan []string, chan error) {
 type WatchHandler func(endpoints []*Endpoint)
 
 func (s *SDClient) Watch(service string, handler WatchHandler) error {
-	s.locker.Lock()
-	defer s.locker.UnLock()
+	err := s.locker.Lock()
+	if err == nil {
+		log.Errorf("failed to lock, service[%s]", service)
+		return err
+	}
+	defer func() {
+		err := s.locker.UnLock()
+		if err == nil {
+			log.Errorf("failed to unlock, service[%s]", service)
+		}
+	}()
 	if service == "" {
 		return errors.New("service is empty")
 	}
@@ -280,8 +335,16 @@ func (s *SDClient) Watch(service string, handler WatchHandler) error {
 			case children := <-childrenRes:
 				log.Infof("watch changed children[%+v], service[%s]", children, service)
 				func() {
-					s.locker.Lock()
-					defer s.locker.UnLock()
+					err := s.locker.Lock()
+					if err == nil {
+						log.Errorf("failed to lock, service[%s], topicPrefix[%s]", service)
+					}
+					defer func() {
+						err := s.locker.UnLock()
+						if err == nil {
+							log.Errorf("failed to unlock, service[%s], topicPrefix[%s]", service)
+						}
+					}()
 					endpoints, err := s.listEndpoints(service)
 					if err != nil {
 						log.Errorf("failed to list endpoint, service[%s]", service)

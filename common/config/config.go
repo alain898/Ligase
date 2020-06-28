@@ -39,7 +39,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"gopkg.in/yaml.v2"
 
-	log "github.com/finogeeks/ligase/skunkworks/log"
+	"github.com/finogeeks/ligase/skunkworks/log"
 	jaegerconfig "github.com/uber/jaeger-client-go/config"
 	jaegermetrics "github.com/uber/jaeger-lib/metrics"
 )
@@ -474,8 +474,12 @@ type Dendrite struct {
 		RoomStateExt DistLockConf `yaml:"room_state_ext"`
 	} `yaml:"dist_lock_custom"`
 
-	License     string `yaml:"license"`
-	LicenseItem LicenseConf
+	License          string `yaml:"license"`
+	LicenseItem      LicenseConf
+	ServiceDiscovery struct {
+		ZkServers []string `yaml:"zookeeper_servers"`
+		ZkRoot    string `yaml:"zookeeper_root"`
+	} `yaml:"service_discovery"`
 }
 
 type LicenseConf struct {
