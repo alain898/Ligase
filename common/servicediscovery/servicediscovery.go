@@ -208,6 +208,46 @@ func (s *SDClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to create endpoint, service[%s], topic[%s]", service, topic)
 		return "", err
 	}
+
+	// recreate service topic when 1) error occurred or 2) topic found not exist
+	watchPath := fmt.Sprintf("%s/%s", s.zkRoot, service)
+	childrenRes, errorsRes := s.watchPath(watchPath)
+	go func() {
+		for {
+			select {
+			case children := <-childrenRes:
+				log.Infof("watch changed children[%+v], service[%s]", children, service)
+			case err := <-errorsRes:
+				log.Errorf("watch err[%+v], service[%s]", err, service)
+			}
+			func() {
+				err := s.locker.Lock()
+				if err == nil {
+					log.Errorf("failed to lock, service[%s], topicPrefix[%s]", service)
+				}
+				defer func() {
+					err := s.locker.UnLock()
+					if err == nil {
+						log.Errorf("failed to unlock, service[%s], topicPrefix[%s]", service)
+					}
+				}()
+				exists, _, err := s.conn.Exists(path)
+				if err != nil {
+					log.Panicf("failed to check exists path[%s]", path)
+					return
+				}
+				if exists {
+					log.Infof("exists path[%s]", path)
+					return
+				}
+				_, err = s.conn.Create(path, data, zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+				if err != nil {
+					log.Panicf("failed to create endpoint, service[%s], topic[%s]", service, topic)
+					return
+				}
+			}()
+		}
+	}()
 	return topic, nil
 }
 
@@ -354,7 +394,7 @@ func (s *SDClient) Watch(service string, handler WatchHandler) error {
 					}
 				}()
 			case err := <-errorsRes:
-				log.Infof("watch err[%+v], service[%s]", err, service)
+				log.Errorf("watch err[%+v], service[%s]", err, service)
 			}
 		}
 	}()
