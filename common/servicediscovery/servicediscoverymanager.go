@@ -13,9 +13,9 @@ const (
 
 type SDManager struct {
 	Locker            sync.RWMutex
-	RegisterEndpoints sync.Map // concurrent map<service string, topic string>
 	SDClient          *SDClient
 	Role              string
+	RegisterEndpoints sync.Map // concurrent map<service string, topic string>
 	WatcherEndpoints  sync.Map // concurrent map<service string, list<topic string>>
 }
 
