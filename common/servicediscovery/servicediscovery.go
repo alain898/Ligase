@@ -240,6 +240,8 @@ func (s *SDClient) Register(service string, topicPrefix string, specifiedTopic s
 						log.Panicf("failed to unlock, service[%s]", service)
 					}
 				}()
+				// sleep about 15 to 20 seconds so that the old ephemeral endpoint is removed.
+				time.Sleep(time.Second * time.Duration(15+rand.Intn(5)))
 				exists, _, err := s.conn.Exists(path)
 				if err != nil {
 					log.Panicf("failed to check exists path[%s]", path)
