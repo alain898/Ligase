@@ -26,6 +26,7 @@ import (
 	"github.com/finogeeks/ligase/rcsserver"
 	"github.com/finogeeks/ligase/skunkworks/log"
 
+	sd "github.com/finogeeks/ligase/common/servicediscovery"
 	// "github.com/finogeeks/ligase/common/keydb"
 	"github.com/finogeeks/ligase/common/uid"
 	"github.com/finogeeks/ligase/dbupdates"
@@ -82,6 +83,7 @@ var dbUpdateProducerName = []string{
 }
 
 func StartMonolithServer(base *basecomponent.BaseDendrite, cmd *serverCmdPar) {
+	sd.SDM.SetRole(sd.RoleWatcher)
 	cache := base.PrepareCache()
 	serverConfDB := base.CreateServerConfDB()
 	inst, err := genServerInstanceID("front", cache, serverConfDB)

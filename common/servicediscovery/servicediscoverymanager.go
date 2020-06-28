@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	RoleMonolith = "monolith"
 	RoleRegister = "register"
 	RoleWatcher  = "watcher"
 )
@@ -20,12 +21,16 @@ type SDManager struct {
 }
 
 func NewSDManager() *SDManager {
-	return &SDManager{SDClient: nil}
+	return &SDManager{SDClient: nil, Role: ""}
 }
 
 func (sdm *SDManager) SetRole(role string) {
-	if role != RoleRegister && role != RoleWatcher {
-		log.Panicf("invalid role")
+	if role != RoleRegister && role != RoleWatcher && role != RoleMonolith {
+		log.Panicf("invalid role[%s]", role)
+	}
+	if sdm.Role != "" {
+		log.Warnf("cannot set role multiple times, role[%s]", role)
+		return
 	}
 	sdm.Role = role
 }

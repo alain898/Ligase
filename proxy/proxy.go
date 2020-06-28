@@ -85,6 +85,9 @@ func SetupProxy(
 }
 
 func setupSDWatcher(cfg *config.Dendrite) {
+	if sd.SDM.Role == sd.RoleMonolith {
+		return
+	}
 	svc := cfg.Rpc.ProxyClientApiTopic
 	sdClient := sd.SDM.PrepareSDClient(cfg)
 	err := sdClient.Watch(svc, func(endpoints []*sd.Endpoint) {
