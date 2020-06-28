@@ -134,6 +134,9 @@ func (sdm *ServiceDiscoveryManager) PrepareSDClient(cfg *config.Dendrite) *servi
 	}
 	sdm.locker.Lock()
 	defer sdm.locker.Unlock()
+	if sdm.SDClient != nil {
+		return sdm.SDClient
+	}
 	sdClient, err := servicediscovery.NewDSClient(cfg.ServiceDiscovery.ZkServers,
 		cfg.ServiceDiscovery.ZkRoot, cfg.ServiceDiscovery.TimeoutSeconds, nil)
 	if err != nil {
@@ -156,6 +159,9 @@ func getProxyRpcTopic(cfg *config.Dendrite) string {
 	sdClient := sdm.PrepareSDClient(cfg)
 	sdm.locker.Lock()
 	defer sdm.locker.Unlock()
+	if topic, ok := sdm.Endpoints.Load(svc); ok {
+		return topic.(string)
+	}
 	topic, err := sdClient.Register(svc, "")
 	if err != nil {
 		log.Panicf("failed to register service[%s]", svc)
