@@ -53,6 +53,7 @@ func SetupProxy(
 	tokenFilter *filter.SimpleFilter,
 ) {
 	sd.SDM.SetRole(sd.RoleWatcher)
+	setupSDWatcher(base.Cfg)
 	bridge.SetupBridge(base.Cfg)
 
 	tokenFilterConsumer := consumers.NewFilterTokenConsumer(rpcCli, tokenFilter)
@@ -78,19 +79,21 @@ func SetupProxy(
 	//	log.Panicf("proxy load certs failed, err: %v", err)
 	//}
 
-	setupSDWatcher(base)
-
 	routing.Setup(
 		base.APIMux, *base.Cfg, cache, rpcCli, rsRpcCli, tokenFilter, feddomains, keyDB,
 	)
 }
 
-func setupSDWatcher(base *basecomponent.BaseDendrite) {
-	svc := base.Cfg.Rpc.ProxyClientApiTopic
-	sdClient := sd.SDM.PrepareSDClient(base.Cfg)
+func setupSDWatcher(cfg *config.Dendrite) {
+	svc := cfg.Rpc.ProxyClientApiTopic
+	sdClient := sd.SDM.PrepareSDClient(cfg)
 	err := sdClient.Watch(svc, func(endpoints []*sd.Endpoint) {
 		log.Infof("change watched for service[%s] endpoints[%+v]", svc, endpoints)
-		sd.SDM.WatcherEndpoints.Store(svc, endpoints)
+		var es []string
+		for _, e := range endpoints {
+			es = append(es, e.Topic)
+		}
+		sd.SDM.WatcherEndpoints.Store(svc, es)
 	})
 	if err != nil {
 		log.Panicf("failed to watch service[%s] err[%+v]", svc, err)
