@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/finogeeks/ligase/skunkworks/log"
 	"github.com/samuel/go-zookeeper/zk"
+	"math/rand"
 	"sort"
 	"strconv"
 	"strings"
@@ -163,8 +164,8 @@ func (s *SDClient) genIndex(indexList []int64) int64 {
 }
 
 func (s *SDClient) Register(service string, topicPrefix string, specifiedTopic string) (string, error) {
-	// wait until old ephemeral endpoint is removed.
-	time.Sleep(time.Second * 15)
+	// sleep about 15 to 20 seconds so that the old ephemeral endpoint is removed.
+	time.Sleep(time.Second * time.Duration(15+rand.Intn(5)))
 	err := s.locker.Lock()
 	if err != nil {
 		log.Panicf("failed to lock, service[%s], topicPrefix[%s]", service, topicPrefix)
