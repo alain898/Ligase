@@ -59,7 +59,7 @@ func (zl *zkLocker) UnLock() error {
 	return zl.locker.Unlock()
 }
 
-func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker Locker) (*SDClient, error) {
+func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int64, locker Locker) (*SDClient, error) {
 	client := new(SDClient)
 	client.zkServers = zkServers
 	client.zkRoot = zkRoot

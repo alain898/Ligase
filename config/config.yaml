@@ -426,3 +426,4 @@ license: '{"organ_name":"community","expire_time":1627920000000,"total_users":10
 service_discovery:
     zookeeper_servers: 127.0.0.1:2181
     zookeeper_root: /servicediscovery
+    timeout_seconds: 10

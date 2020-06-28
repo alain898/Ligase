@@ -231,7 +231,7 @@ func (b *BaseDendrite) PrepareSDClient() *servicediscovery.SDClient {
 		return b.SDClient
 	}
 	sdClient, err := servicediscovery.NewDSClient(b.Cfg.ServiceDiscovery.ZkServers,
-		b.Cfg.ServiceDiscovery.ZkRoot, 10, nil)
+		b.Cfg.ServiceDiscovery.ZkRoot, b.Cfg.ServiceDiscovery.TimeoutSeconds, nil)
 	if err != nil {
 		log.Panicf("failed to NewDSClient, ZkServers[%s], ZkRoot[%s], err:%v",
 			b.Cfg.ServiceDiscovery.ZkServers, b.Cfg.ServiceDiscovery.ZkRoot, err)

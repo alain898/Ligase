@@ -479,6 +479,7 @@ type Dendrite struct {
 	ServiceDiscovery struct {
 		ZkServers []string `yaml:"zookeeper_servers"`
 		ZkRoot    string `yaml:"zookeeper_root"`
+		TimeoutSeconds    int64 `yaml:"timeout_seconds"`
 	} `yaml:"service_discovery"`
 }
 
