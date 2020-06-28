@@ -313,6 +313,7 @@ func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
 		}
 		nodes = append(nodes, node)
 	}
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Topic < nodes[j].Topic })
 	return nodes, nil
 }
 
