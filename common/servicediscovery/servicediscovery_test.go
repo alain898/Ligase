@@ -54,8 +54,8 @@ func TestServiceDiscovery(t *testing.T) {
 	}
 	defer client.Close()
 
-	err = client.Watch("service1", func(endpoints []*Endpoint) {
-		log.Infof("change watched for service1 [%+v]", endpoints)
+	err = client.Watch("service1", func(service string, endpoints []string) {
+		log.Infof("change watched for service[%s] endpoints[%+v]", service, endpoints)
 	})
 	if err != nil {
 		log.Errorf("err[%+v]", err)

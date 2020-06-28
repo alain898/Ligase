@@ -90,11 +90,11 @@ func setupSDWatcher(cfg *config.Dendrite) {
 	}
 	svc := cfg.Rpc.ProxyClientApiTopic
 	sdClient := sd.SDM.PrepareSDClient(cfg)
-	err := sdClient.Watch(svc, func(endpoints []*sd.Endpoint) {
-		log.Infof("change watched for service[%s] endpoints[%+v]", svc, endpoints)
+	err := sdClient.Watch(svc, func(service string, endpoints []string) {
+		log.Infof("change watched for service[%s] endpoints[%+v]", service, endpoints)
 		var es []string
 		for _, e := range endpoints {
-			es = append(es, e.Topic)
+			es = append(es, e)
 		}
 		sd.SDM.WatcherEndpoints.Store(svc, es)
 	})

@@ -128,15 +128,15 @@ func (s *SDClient) contains(list []int64, e int64) bool {
 	return false
 }
 
-func (s *SDClient) getEndpointIndex(endpoints []*Endpoint) ([]int64, error) {
+func (s *SDClient) getEndpointIndex(endpoints []string) ([]int64, error) {
 	if endpoints == nil {
 		return nil, errors.New("endpoints is nil")
 	}
 	var indexList []int64
 	for _, ep := range endpoints {
-		splits := strings.Split(ep.Topic, splitSign)
+		splits := strings.Split(ep, splitSign)
 		if len(splits) != 2 {
-			err := fmt.Sprintf("invalid topic[%s], service[%s]", ep.Topic, ep.Service)
+			err := fmt.Sprintf("invalid topic[%s]", ep)
 			log.Errorf(err)
 			return nil, errors.New(err)
 		}
@@ -284,7 +284,7 @@ func (s *SDClient) Deregister(service string, topic string) error {
 	return nil
 }
 
-func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
+func (s *SDClient) listEndpoints(service string) ([]string, error) {
 	if service == "" {
 		return nil, errors.New("service is empty")
 	}
@@ -292,11 +292,11 @@ func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
 	children, _, err := s.conn.Children(path)
 	if err != nil {
 		if err == zk.ErrNoNode {
-			return []*Endpoint{}, nil
+			return []string{}, nil
 		}
 		return nil, err
 	}
-	var nodes []*Endpoint
+	var nodes []string
 	for _, child := range children {
 		fullPath := path + "/" + child
 		data, _, err := s.conn.Get(fullPath)
@@ -311,13 +311,13 @@ func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
 		if err != nil {
 			return nil, err
 		}
-		nodes = append(nodes, node)
+		nodes = append(nodes, node.Topic)
 	}
-	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Topic < nodes[j].Topic })
+	sort.Strings(nodes)
 	return nodes, nil
 }
 
-func (s *SDClient) ListEndpoints(service string) ([]*Endpoint, error) {
+func (s *SDClient) ListEndpoints(service string) ([]string, error) {
 	err := s.locker.Lock()
 	if err != nil {
 		log.Panicf("failed to lock, service[%s]", service)
@@ -335,29 +335,25 @@ func (s *SDClient) ListEndpoints(service string) ([]*Endpoint, error) {
 	return s.listEndpoints(service)
 }
 
-func (s *SDClient) watchPath(path string) (chan []string, chan error) {
-	childrenRes := make(chan []string)
+func (s *SDClient) watchPath(path string) (chan zk.Event, chan error) {
+	childrenRes := make(chan zk.Event)
 	errorsRes := make(chan error)
 
 	go func() {
 		for {
-			children, _, events, err := s.conn.ChildrenW(path)
+			_, _, childEvent, err := s.conn.ChildrenW(path)
 			if err != nil {
 				errorsRes <- err
-				return
-			}
-			childrenRes <- children
-			evt := <-events
-			if evt.Err != nil {
-				errorsRes <- evt.Err
-				return
+			} else {
+				event := <-childEvent
+				childrenRes <- event
 			}
 		}
 	}()
 	return childrenRes, errorsRes
 }
 
-type WatchHandler func(endpoints []*Endpoint)
+type WatchHandler func(service string, endpoints []string)
 
 func (s *SDClient) Watch(service string, handler WatchHandler) error {
 	err := s.locker.Lock()
@@ -397,10 +393,10 @@ func (s *SDClient) Watch(service string, handler WatchHandler) error {
 				}()
 				endpoints, err := s.listEndpoints(service)
 				if err != nil {
-					log.Errorf("failed to list endpoint, service[%s]", service)
+					log.Panicf("failed to list endpoint, service[%s]", service)
 				} else {
 					log.Infof("handler endpoints[%+v]", endpoints)
-					handler(endpoints)
+					handler(service, endpoints)
 				}
 			}()
 		}
