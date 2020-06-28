@@ -36,7 +36,7 @@ func doTest() {
 	}
 	defer client.Close()
 
-	if topic, err := client.Register("service1", ""); err == nil {
+	if topic, err := client.Register("service1", "", ""); err == nil {
 		log.Infof(fmt.Sprintf("topic[%s]", topic))
 	}
 

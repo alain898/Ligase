@@ -162,7 +162,7 @@ func (s *SDClient) genIndex(indexList []int64) int64 {
 	}
 }
 
-func (s *SDClient) Register(service string, topicPrefix string) (string, error) {
+func (s *SDClient) Register(service string, topicPrefix string, specifiedTopic string) (string, error) {
 	err := s.locker.Lock()
 	if err != nil {
 		log.Panicf("failed to lock, service[%s], topicPrefix[%s]", service, topicPrefix)
@@ -181,21 +181,27 @@ func (s *SDClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to create node, service[%s], topicPrefix[%s]", service, topicPrefix)
 		return "", err
 	}
-	endpoints, err := s.listEndpoints(service)
-	if err != nil {
-		log.Errorf("failed to list endpoint, service[%s]", service)
-		return "", err
-	}
 	topic := fmt.Sprintf("%s%s%d", topicPrefix, splitSign, 0)
-	if len(endpoints) != 0 {
-		indexList, err := s.getEndpointIndex(endpoints)
+	if specifiedTopic == "" {
+		endpoints, err := s.listEndpoints(service)
 		if err != nil {
-			log.Errorf("failed to parse index for endpoints[%+v]", endpoints)
+			log.Errorf("failed to list endpoint, service[%s]", service)
 			return "", err
 		}
-		topicIndex := s.genIndex(indexList)
-		topic = fmt.Sprintf("%s%s%d", topicPrefix, splitSign, topicIndex)
+
+		if len(endpoints) != 0 {
+			indexList, err := s.getEndpointIndex(endpoints)
+			if err != nil {
+				log.Errorf("failed to parse index for endpoints[%+v]", endpoints)
+				return "", err
+			}
+			topicIndex := s.genIndex(indexList)
+			topic = fmt.Sprintf("%s%s%d", topicPrefix, splitSign, topicIndex)
+		}
+	} else {
+		topic = specifiedTopic
 	}
+
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
 	endpoint := Endpoint{Service: service, Topic: topic}
 	data, err := json.Marshal(endpoint)
