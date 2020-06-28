@@ -341,11 +341,13 @@ func (s *SDClient) watchPath(path string) (chan zk.Event, chan error) {
 
 	go func() {
 		for {
-			_, _, childEvent, err := s.conn.ChildrenW(path)
+			children, _, childEvent, err := s.conn.ChildrenW(path)
 			if err != nil {
+				log.Errorf("error watched, err[%+v]", err)
 				errorsRes <- err
 			} else {
 				event := <-childEvent
+				log.Errorf("event watched, children[%+v], event[%+v]", children, event)
 				childrenRes <- event
 			}
 		}
