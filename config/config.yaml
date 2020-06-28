@@ -1,7 +1,7 @@
 version: 0
 
 matrix:
-    # Server name list support multi-tenant, specify only one element most of time. 
+    # Server name list support multi-tenant, specify only one element most of time.
     server_name: [ligase]
     homeserver_url: http://127.0.0.1:8008
     identity_server_url: https://vector.im
@@ -422,3 +422,7 @@ dist_lock_custom:
         force: false
 
 license: '{"organ_name":"community","expire_time":1627920000000,"total_users":100,"total_rooms":1,"room_members":1,"desc":"community","organ_domain":"community","reg_organ":"community","encryption":false,"secret":"pTRiLIHpGVgT0jsk"}'
+
+service_discovery:
+    zookeeper_servers: 127.0.0.1:2181
+    zookeeper_root: /servicediscovery
