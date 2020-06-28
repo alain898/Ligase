@@ -21,8 +21,8 @@ type Locker interface {
 	UnLock()
 }
 
-// DSClient is not concurrency safe, so please use a extra distribute lock to ensure concurrency safe when it's necessary.
-type DSClient struct {
+// SDClient is not concurrency safe, so please use a extra distribute lock to ensure concurrency safe when it's necessary.
+type SDClient struct {
 	zkServers []string // zookeeper servers
 	zkRoot    string   // root path for store the meta data for service discovery
 	conn      *zk.Conn // zookeeper client connect
@@ -45,8 +45,8 @@ func (wl *wrapLocker) UnLock() {
 	}
 }
 
-func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker Locker) (*DSClient, error) {
-	client := new(DSClient)
+func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker Locker) (*SDClient, error) {
+	client := new(SDClient)
 	client.zkServers = zkServers
 	client.zkRoot = zkRoot
 	client.locker = wrapLocker{locker: locker}
@@ -62,11 +62,11 @@ func NewDSClient(zkServers []string, zkRoot string, timeoutSeconds int, locker L
 	return client, nil
 }
 
-func (s *DSClient) Close() {
+func (s *SDClient) Close() {
 	s.conn.Close()
 }
 
-func (s *DSClient) createRootIfNotExist() error {
+func (s *SDClient) createRootIfNotExist() error {
 	exists, _, err := s.conn.Exists(s.zkRoot)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func (s *DSClient) createRootIfNotExist() error {
 	return nil
 }
 
-func (s *DSClient) createServiceIfNotExist(service string) error {
+func (s *SDClient) createServiceIfNotExist(service string) error {
 	path := s.zkRoot + "/" + service
 	exists, _, err := s.conn.Exists(path)
 	if err != nil {
@@ -100,7 +100,7 @@ type Endpoint struct {
 	Topic   string `json:"topic"`
 }
 
-func (s *DSClient) contains(list []int64, e int64) bool {
+func (s *SDClient) contains(list []int64, e int64) bool {
 	for _, a := range list {
 		if a == e {
 			return true
@@ -109,7 +109,7 @@ func (s *DSClient) contains(list []int64, e int64) bool {
 	return false
 }
 
-func (s *DSClient) getEndpointIndex(endpoints []*Endpoint) ([]int64, error) {
+func (s *SDClient) getEndpointIndex(endpoints []*Endpoint) ([]int64, error) {
 	if endpoints == nil {
 		return nil, errors.New("endpoints is nil")
 	}
@@ -132,7 +132,7 @@ func (s *DSClient) getEndpointIndex(endpoints []*Endpoint) ([]int64, error) {
 	return indexList, nil
 }
 
-func (s *DSClient) genIndex(indexList []int64) int64 {
+func (s *SDClient) genIndex(indexList []int64) int64 {
 	if indexList == nil {
 		return 0
 	}
@@ -143,7 +143,7 @@ func (s *DSClient) genIndex(indexList []int64) int64 {
 	}
 }
 
-func (s *DSClient) Register(service string, topicPrefix string) (string, error) {
+func (s *SDClient) Register(service string, topicPrefix string) (string, error) {
 	s.locker.Lock()
 	defer s.locker.UnLock()
 	if topicPrefix == "" {
@@ -153,7 +153,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 		log.Errorf("failed to create node, service[%s], topicPrefix[%s]", service, topicPrefix)
 		return "", err
 	}
-	endpoints, err := s.listEndpoint(service)
+	endpoints, err := s.listEndpoints(service)
 	if err != nil {
 		log.Errorf("failed to list endpoint, service[%s]", service)
 		return "", err
@@ -183,7 +183,7 @@ func (s *DSClient) Register(service string, topicPrefix string) (string, error) 
 	return topic, nil
 }
 
-func (s *DSClient) Deregister(service string, topic string) error {
+func (s *SDClient) Deregister(service string, topic string) error {
 	s.locker.Lock()
 	defer s.locker.UnLock()
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
@@ -201,7 +201,7 @@ func (s *DSClient) Deregister(service string, topic string) error {
 	return nil
 }
 
-func (s *DSClient) listEndpoint(service string) ([]*Endpoint, error) {
+func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
 	if service == "" {
 		return nil, errors.New("service is empty")
 	}
@@ -233,7 +233,16 @@ func (s *DSClient) listEndpoint(service string) ([]*Endpoint, error) {
 	return nodes, nil
 }
 
-func (s *DSClient) watchPath(path string) (chan []string, chan error) {
+func (s *SDClient) ListEndpoints(service string) ([]*Endpoint, error) {
+	s.locker.Lock()
+	defer s.locker.UnLock()
+	if service == "" {
+		return nil, errors.New("service is empty")
+	}
+	return s.listEndpoints(service)
+}
+
+func (s *SDClient) watchPath(path string) (chan []string, chan error) {
 	childrenRes := make(chan []string)
 	errorsRes := make(chan error)
 
@@ -257,7 +266,7 @@ func (s *DSClient) watchPath(path string) (chan []string, chan error) {
 
 type WatchHandler func(endpoints []*Endpoint)
 
-func (s *DSClient) Watch(service string, handler WatchHandler) error {
+func (s *SDClient) Watch(service string, handler WatchHandler) error {
 	s.locker.Lock()
 	defer s.locker.UnLock()
 	if service == "" {
@@ -273,7 +282,7 @@ func (s *DSClient) Watch(service string, handler WatchHandler) error {
 				func() {
 					s.locker.Lock()
 					defer s.locker.UnLock()
-					endpoints, err := s.listEndpoint(service)
+					endpoints, err := s.listEndpoints(service)
 					if err != nil {
 						log.Errorf("failed to list endpoint, service[%s]", service)
 					} else {
