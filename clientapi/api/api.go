@@ -119,8 +119,9 @@ func (c *InternalMsgConsumer) Start() {
 }
 
 type ServiceDiscoveryManager struct {
-	locker   sync.RWMutex
-	SDClient *servicediscovery.SDClient
+	locker    sync.RWMutex
+	Endpoints sync.Map // key is service string, value is topic string
+	SDClient  *servicediscovery.SDClient
 }
 
 func NewServiceDiscoveryManager() *ServiceDiscoveryManager {
@@ -148,8 +149,20 @@ func (sdm *ServiceDiscoveryManager) PrepareSDClient(cfg *config.Dendrite) *servi
 var sdm = NewServiceDiscoveryManager()
 
 func getProxyRpcTopic(cfg *config.Dendrite) string {
+	svc := cfg.Rpc.ProxyClientApiTopic
+	if topic, ok := sdm.Endpoints.Load(svc); ok {
+		return topic.(string)
+	}
 	sdClient := sdm.PrepareSDClient(cfg)
-	return cfg.Rpc.ProxyClientApiTopic
+	sdm.locker.Lock()
+	defer sdm.locker.Unlock()
+	topic, err := sdClient.Register(svc, "")
+	if err != nil {
+		log.Panicf("failed to register service[%s]", svc)
+	}
+	sdm.Endpoints.Store(svc, topic)
+	log.Infof("succeed to register service[%s]", svc)
+	return topic
 }
 
 func init() {
