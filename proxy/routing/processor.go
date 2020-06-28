@@ -16,6 +16,8 @@ package routing
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/finogeeks/ligase/plugins/message/external"
 	"net/http"
 	"strconv"
@@ -272,7 +274,7 @@ func (w *HttpProcessor) genInput(coder core.Coder, processor apiconsumer.APIProc
 	return input, nil
 }
 
-func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) string {
+func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) (string, error) {
 	roomId := ""
 	switch msg := coder.(type) {
 	case *external.PostRoomsJoinByAliasRequest:
@@ -289,11 +291,16 @@ func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) strin
 		roomId = ""
 	}
 	if roomId == "" {
-		return service
+		return service, nil
 	}
-	// todo: getTopicByRoomId
-
-	return ""
+	item, ok := sd.SDM.WatcherEndpoints.Load(service)
+	if !ok {
+		return "", errors.New(fmt.Sprintf("failed to get topic for service[%s]", service))
+	}
+	endpoints := item.([]string)
+	hash := common.CalcStringHashCode(roomId)
+	slot := hash % uint32(len(endpoints))
+	return endpoints[slot], nil
 }
 
 func (w *HttpProcessor) ProcessInput(req *http.Request, coder core.Coder, processor apiconsumer.APIProcessor, device *authtypes.Device, topic string) util.JSONResponse {
