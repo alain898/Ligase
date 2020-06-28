@@ -16,6 +16,7 @@ package routing
 
 import (
 	"context"
+	"github.com/finogeeks/ligase/plugins/message/external"
 	"net/http"
 	"strconv"
 	"time"
@@ -74,7 +75,7 @@ func NewHttpProcessor(
 	histogram mon.LabeledHistogram,
 	feddomains *common.FedDomains,
 	keyDB model.KeyDatabase,
-	// counter mon.LabeledCounter,
+// counter mon.LabeledCounter,
 ) *HttpProcessor {
 	localCache := new(cache.LocalCacheRepo)
 	localCache.Start(1, cfg.Cache.DurationDefault)
@@ -270,6 +271,29 @@ func (w *HttpProcessor) genInput(coder core.Coder, processor apiconsumer.APIProc
 	return input, nil
 }
 
+func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) string {
+	roomId := ""
+	switch msg := coder.(type) {
+	case *external.PostRoomsJoinByAliasRequest:
+		roomId = msg.RoomID
+	case *external.PostRoomsMembershipRequest:
+		roomId = msg.RoomID
+	case *external.PutRoomStateByTypeWithTxnID:
+		roomId = msg.RoomID
+	case *external.PutRedactEventRequest:
+		roomId = msg.RoomID
+	case *external.PutRedactWithTxnIDEventRequest:
+		roomId = msg.RoomID
+	default:
+		roomId = ""
+	}
+	if roomId == "" {
+		return service
+	}
+	// todo: getTopicByRoomId
+	return ""
+}
+
 func (w *HttpProcessor) ProcessInput(req *http.Request, coder core.Coder, processor apiconsumer.APIProcessor, device *authtypes.Device, topic string) util.JSONResponse {
 	input, err := w.genInput(coder, processor, device)
 	if err != nil {
@@ -278,8 +302,8 @@ func (w *HttpProcessor) ProcessInput(req *http.Request, coder core.Coder, proces
 			JSON: jsonerror.Unknown(err.Error()),
 		}
 	}
-
-	outputMsg, err := w.send(topic, input)
+	sTopic := w.getTopicByRoomId(topic, coder)
+	outputMsg, err := w.send(sTopic, input)
 	if err != nil {
 		return util.JSONResponse{
 			Code: http.StatusInternalServerError,
