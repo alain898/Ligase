@@ -163,6 +163,8 @@ func (s *SDClient) genIndex(indexList []int64) int64 {
 }
 
 func (s *SDClient) Register(service string, topicPrefix string, specifiedTopic string) (string, error) {
+	// wait until old ephemeral endpoint is removed.
+	time.Sleep(time.Second * 15)
 	err := s.locker.Lock()
 	if err != nil {
 		log.Panicf("failed to lock, service[%s], topicPrefix[%s]", service, topicPrefix)
