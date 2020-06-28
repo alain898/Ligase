@@ -311,7 +311,13 @@ func (w *HttpProcessor) ProcessInput(req *http.Request, coder core.Coder, proces
 			JSON: jsonerror.Unknown(err.Error()),
 		}
 	}
-	sTopic := w.getTopicByRoomId(topic, coder)
+	sTopic, err := w.getTopicByRoomId(topic, coder)
+	if err != nil {
+		return util.JSONResponse{
+			Code: http.StatusInternalServerError,
+			JSON: jsonerror.Unknown(err.Error()),
+		}
+	}
 	outputMsg, err := w.send(sTopic, input)
 	if err != nil {
 		return util.JSONResponse{
