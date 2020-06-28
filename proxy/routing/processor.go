@@ -275,6 +275,9 @@ func (w *HttpProcessor) genInput(coder core.Coder, processor apiconsumer.APIProc
 }
 
 func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) (string, error) {
+	if sd.SDM.Role != sd.RoleWatcher {
+		return service, nil
+	}
 	roomId := ""
 	switch msg := coder.(type) {
 	case *external.PostRoomsJoinByAliasRequest:
