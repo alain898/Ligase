@@ -164,14 +164,14 @@ func (s *SDClient) genIndex(indexList []int64) int64 {
 
 func (s *SDClient) Register(service string, topicPrefix string) (string, error) {
 	err := s.locker.Lock()
-	if err == nil {
-		log.Errorf("failed to lock, service[%s], topicPrefix[%s]", service, topicPrefix)
+	if err != nil {
+		log.Panicf("failed to lock, service[%s], topicPrefix[%s]", service, topicPrefix)
 		return "", err
 	}
 	defer func() {
 		err := s.locker.UnLock()
-		if err == nil {
-			log.Errorf("failed to unlock, service[%s], topicPrefix[%s]", service, topicPrefix)
+		if err != nil {
+			log.Panicf("failed to unlock, service[%s], topicPrefix[%s]", service, topicPrefix)
 		}
 	}()
 	if topicPrefix == "" {
@@ -222,13 +222,13 @@ func (s *SDClient) Register(service string, topicPrefix string) (string, error) 
 			}
 			func() {
 				err := s.locker.Lock()
-				if err == nil {
-					log.Errorf("failed to lock, service[%s], topicPrefix[%s]", service)
+				if err != nil {
+					log.Panicf("failed to lock, service[%s]", service)
 				}
 				defer func() {
 					err := s.locker.UnLock()
-					if err == nil {
-						log.Errorf("failed to unlock, service[%s], topicPrefix[%s]", service)
+					if err != nil {
+						log.Panicf("failed to unlock, service[%s]", service)
 					}
 				}()
 				exists, _, err := s.conn.Exists(path)
@@ -253,14 +253,14 @@ func (s *SDClient) Register(service string, topicPrefix string) (string, error) 
 
 func (s *SDClient) Deregister(service string, topic string) error {
 	err := s.locker.Lock()
-	if err == nil {
-		log.Errorf("failed to lock, service[%s]", service)
+	if err != nil {
+		log.Panicf("failed to lock, service[%s]", service)
 		return err
 	}
 	defer func() {
 		err := s.locker.UnLock()
-		if err == nil {
-			log.Errorf("failed to unlock, service[%s]", service)
+		if err != nil {
+			log.Panicf("failed to unlock, service[%s]", service)
 		}
 	}()
 	path := fmt.Sprintf("%s/%s/%s", s.zkRoot, service, topic)
@@ -312,14 +312,14 @@ func (s *SDClient) listEndpoints(service string) ([]*Endpoint, error) {
 
 func (s *SDClient) ListEndpoints(service string) ([]*Endpoint, error) {
 	err := s.locker.Lock()
-	if err == nil {
-		log.Errorf("failed to lock, service[%s]", service)
+	if err != nil {
+		log.Panicf("failed to lock, service[%s]", service)
 		return nil, err
 	}
 	defer func() {
 		err := s.locker.UnLock()
-		if err == nil {
-			log.Errorf("failed to unlock, service[%s]", service)
+		if err != nil {
+			log.Panicf("failed to unlock, service[%s]", service)
 		}
 	}()
 	if service == "" {
@@ -354,14 +354,14 @@ type WatchHandler func(endpoints []*Endpoint)
 
 func (s *SDClient) Watch(service string, handler WatchHandler) error {
 	err := s.locker.Lock()
-	if err == nil {
-		log.Errorf("failed to lock, service[%s]", service)
+	if err != nil {
+		log.Panicf("failed to lock, service[%s]", service)
 		return err
 	}
 	defer func() {
 		err := s.locker.UnLock()
-		if err == nil {
-			log.Errorf("failed to unlock, service[%s]", service)
+		if err != nil {
+			log.Panicf("failed to unlock, service[%s]", service)
 		}
 	}()
 	if service == "" {
@@ -374,28 +374,28 @@ func (s *SDClient) Watch(service string, handler WatchHandler) error {
 			select {
 			case children := <-childrenRes:
 				log.Infof("watch changed children[%+v], service[%s]", children, service)
-				func() {
-					err := s.locker.Lock()
-					if err == nil {
-						log.Errorf("failed to lock, service[%s], topicPrefix[%s]", service)
-					}
-					defer func() {
-						err := s.locker.UnLock()
-						if err == nil {
-							log.Errorf("failed to unlock, service[%s], topicPrefix[%s]", service)
-						}
-					}()
-					endpoints, err := s.listEndpoints(service)
-					if err != nil {
-						log.Errorf("failed to list endpoint, service[%s]", service)
-					} else {
-						log.Infof("handler endpoints[%+v]", endpoints)
-						handler(endpoints)
-					}
-				}()
 			case err := <-errorsRes:
 				log.Errorf("watch err[%+v], service[%s]", err, service)
 			}
+			func() {
+				err := s.locker.Lock()
+				if err != nil {
+					log.Panicf("failed to lock, service[%s]", service)
+				}
+				defer func() {
+					err := s.locker.UnLock()
+					if err != nil {
+						log.Panicf("failed to unlock, service[%s]", service)
+					}
+				}()
+				endpoints, err := s.listEndpoints(service)
+				if err != nil {
+					log.Errorf("failed to list endpoint, service[%s]", service)
+				} else {
+					log.Infof("handler endpoints[%+v]", endpoints)
+					handler(endpoints)
+				}
+			}()
 		}
 	}()
 	return nil
