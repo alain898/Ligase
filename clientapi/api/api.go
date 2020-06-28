@@ -137,6 +137,8 @@ func getProxyRpcTopic(cfg *config.Dendrite) string {
 	if err != nil {
 		log.Panicf("failed to register service[%s]", svc)
 	}
+	// topic dose not change at runtime except the process restart.
+	// the sdClient.Register() helps to recreate the same topic when a zookeeper or connection error happen.
 	sd.SDM.RegisterEndpoints.Store(svc, topic)
 	log.Infof("succeed to register service[%s]", svc)
 	return topic
