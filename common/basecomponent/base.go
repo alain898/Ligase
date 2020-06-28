@@ -22,7 +22,6 @@ import (
 	"github.com/finogeeks/ligase/common"
 	"github.com/finogeeks/ligase/common/config"
 	"github.com/finogeeks/ligase/common/domain"
-	"github.com/finogeeks/ligase/common/servicediscovery"
 	"github.com/finogeeks/ligase/common/uid"
 	"github.com/finogeeks/ligase/model/service"
 	"github.com/finogeeks/ligase/model/service/roomserverapi"
@@ -53,7 +52,6 @@ type BaseDendrite struct {
 	APIMux     *mux.Router
 	Cfg        *config.Dendrite
 	RedisCache service.Cache
-	SDClient   *servicediscovery.SDClient
 }
 
 // NewBaseDendrite creates a new instance to be used by a component.
@@ -224,22 +222,6 @@ func (b *BaseDendrite) PrepareCache() service.Cache {
 		log.Panicf("failed to connect to redis cache err:%v", err)
 	}
 	return b.RedisCache
-}
-
-func (b *BaseDendrite) PrepareSDClient() *servicediscovery.SDClient {
-	if b.SDClient != nil {
-		return b.SDClient
-	}
-	sdClient, err := servicediscovery.NewDSClient(b.Cfg.ServiceDiscovery.ZkServers,
-		b.Cfg.ServiceDiscovery.ZkRoot, b.Cfg.ServiceDiscovery.TimeoutSeconds, nil)
-	if err != nil {
-		log.Panicf("failed to NewDSClient, ZkServers[%s], ZkRoot[%s], err:%v",
-			b.Cfg.ServiceDiscovery.ZkServers, b.Cfg.ServiceDiscovery.ZkRoot, err)
-	}
-	b.SDClient = sdClient
-	log.Infof("succeed to NewDSClient, ZkServers[%s], ZkRoot[%s]",
-		b.Cfg.ServiceDiscovery.ZkServers, b.Cfg.ServiceDiscovery.ZkRoot)
-	return b.SDClient
 }
 
 // CreateKeyDB creates a new instance of the key database. Should only be called

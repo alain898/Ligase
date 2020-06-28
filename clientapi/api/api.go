@@ -16,9 +16,11 @@ package api
 
 import (
 	"context"
+	"github.com/finogeeks/ligase/common/servicediscovery"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/finogeeks/ligase/cache"
 	"github.com/finogeeks/ligase/clientapi/routing"
@@ -116,7 +118,37 @@ func (c *InternalMsgConsumer) Start() {
 	c.APIConsumer.Start()
 }
 
+type ServiceDiscoveryManager struct {
+	locker   sync.RWMutex
+	SDClient *servicediscovery.SDClient
+}
+
+func NewServiceDiscoveryManager() *ServiceDiscoveryManager {
+	return &ServiceDiscoveryManager{SDClient: nil}
+}
+
+func (sdm *ServiceDiscoveryManager) PrepareSDClient(cfg *config.Dendrite) *servicediscovery.SDClient {
+	if sdm.SDClient != nil {
+		return sdm.SDClient
+	}
+	sdm.locker.Lock()
+	defer sdm.locker.Unlock()
+	sdClient, err := servicediscovery.NewDSClient(cfg.ServiceDiscovery.ZkServers,
+		cfg.ServiceDiscovery.ZkRoot, cfg.ServiceDiscovery.TimeoutSeconds, nil)
+	if err != nil {
+		log.Panicf("failed to NewDSClient, ZkServers[%s], ZkRoot[%s], err:%v",
+			cfg.ServiceDiscovery.ZkServers, cfg.ServiceDiscovery.ZkRoot, err)
+	}
+	sdm.SDClient = sdClient
+	log.Infof("succeed to NewDSClient, ZkServers[%s], ZkRoot[%s]",
+		cfg.ServiceDiscovery.ZkServers, cfg.ServiceDiscovery.ZkRoot)
+	return sdm.SDClient
+}
+
+var sdm = NewServiceDiscoveryManager()
+
 func getProxyRpcTopic(cfg *config.Dendrite) string {
+	sdClient := sdm.PrepareSDClient(cfg)
 	return cfg.Rpc.ProxyClientApiTopic
 }
 
