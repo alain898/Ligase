@@ -16,11 +16,10 @@ package api
 
 import (
 	"context"
-	"github.com/finogeeks/ligase/common/servicediscovery"
+	"github.com/finogeeks/ligase/model/types"
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/finogeeks/ligase/cache"
 	"github.com/finogeeks/ligase/clientapi/routing"
@@ -29,13 +28,13 @@ import (
 	"github.com/finogeeks/ligase/common/config"
 	"github.com/finogeeks/ligase/common/filter"
 	"github.com/finogeeks/ligase/common/jsonerror"
+	sd "github.com/finogeeks/ligase/common/servicediscovery"
 	"github.com/finogeeks/ligase/common/uid"
 	"github.com/finogeeks/ligase/core"
 	fed "github.com/finogeeks/ligase/federation/fedreq"
 	"github.com/finogeeks/ligase/model/authtypes"
 	"github.com/finogeeks/ligase/model/service"
 	"github.com/finogeeks/ligase/model/service/roomserverapi"
-	"github.com/finogeeks/ligase/model/types"
 	"github.com/finogeeks/ligase/plugins/message/external"
 	"github.com/finogeeks/ligase/plugins/message/internals"
 	"github.com/finogeeks/ligase/skunkworks/gomatrixserverlib"
@@ -114,59 +113,31 @@ func NewInternalMsgConsumer(
 }
 
 func (c *InternalMsgConsumer) Start() {
-	c.APIConsumer.InitGroup("clientapi", c, c.Cfg.Rpc.ProxyClientApiTopic, types.CLIENT_API_GROUP)
+	topic := getProxyRpcTopic(&c.Cfg)
+	c.APIConsumer.InitGroup("clientapi", c, topic, types.CLIENT_API_GROUP)
 	c.APIConsumer.Start()
 }
 
-type ServiceDiscoveryManager struct {
-	locker    sync.RWMutex
-	Endpoints sync.Map // key is service string, value is topic string
-	SDClient  *servicediscovery.SDClient
-}
-
-func NewServiceDiscoveryManager() *ServiceDiscoveryManager {
-	return &ServiceDiscoveryManager{SDClient: nil}
-}
-
-func (sdm *ServiceDiscoveryManager) PrepareSDClient(cfg *config.Dendrite) *servicediscovery.SDClient {
-	if sdm.SDClient != nil {
-		return sdm.SDClient
-	}
-	sdm.locker.Lock()
-	defer sdm.locker.Unlock()
-	if sdm.SDClient != nil {
-		return sdm.SDClient
-	}
-	sdClient, err := servicediscovery.NewDSClient(cfg.ServiceDiscovery.ZkServers,
-		cfg.ServiceDiscovery.ZkRoot, cfg.ServiceDiscovery.TimeoutSeconds, nil)
-	if err != nil {
-		log.Panicf("failed to NewDSClient, ZkServers[%s], ZkRoot[%s], err:%v",
-			cfg.ServiceDiscovery.ZkServers, cfg.ServiceDiscovery.ZkRoot, err)
-	}
-	sdm.SDClient = sdClient
-	log.Infof("succeed to NewDSClient, ZkServers[%s], ZkRoot[%s]",
-		cfg.ServiceDiscovery.ZkServers, cfg.ServiceDiscovery.ZkRoot)
-	return sdm.SDClient
-}
-
-var sdm = NewServiceDiscoveryManager()
-
 func getProxyRpcTopic(cfg *config.Dendrite) string {
+	if sd.SDM.Role == sd.RoleWatcher {
+		// always return cfg.Rpc.ProxyClientApiTopic if it's proxy
+		return cfg.Rpc.ProxyClientApiTopic
+	}
 	svc := cfg.Rpc.ProxyClientApiTopic
-	if topic, ok := sdm.Endpoints.Load(svc); ok {
+	if topic, ok := sd.SDM.Endpoints.Load(svc); ok {
 		return topic.(string)
 	}
-	sdClient := sdm.PrepareSDClient(cfg)
-	sdm.locker.Lock()
-	defer sdm.locker.Unlock()
-	if topic, ok := sdm.Endpoints.Load(svc); ok {
+	sdClient := sd.SDM.PrepareSDClient(cfg)
+	sd.SDM.Locker.Lock()
+	defer sd.SDM.Locker.Unlock()
+	if topic, ok := sd.SDM.Endpoints.Load(svc); ok {
 		return topic.(string)
 	}
 	topic, err := sdClient.Register(svc, "")
 	if err != nil {
 		log.Panicf("failed to register service[%s]", svc)
 	}
-	sdm.Endpoints.Store(svc, topic)
+	sd.SDM.Endpoints.Store(svc, topic)
 	log.Infof("succeed to register service[%s]", svc)
 	return topic
 }

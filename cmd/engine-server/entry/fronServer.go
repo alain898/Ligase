@@ -39,10 +39,12 @@ import (
 	"github.com/finogeeks/ligase/roomserver"
 	"github.com/finogeeks/ligase/storage/implements/keydb"
 
+	sd "github.com/finogeeks/ligase/common/servicediscovery"
 	fed "github.com/finogeeks/ligase/federation/fedreq"
 )
 
 func StartFrontServer(base *basecomponent.BaseDendrite, cmd *serverCmdPar) {
+	sd.SDM.SetRole(sd.RoleRegister)
 	cache := base.PrepareCache()
 	serverConfDB := base.CreateServerConfDB()
 	inst, err := genServerInstanceID("front", cache, serverConfDB)
