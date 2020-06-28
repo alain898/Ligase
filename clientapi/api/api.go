@@ -124,20 +124,20 @@ func getProxyRpcTopic(cfg *config.Dendrite) string {
 		return cfg.Rpc.ProxyClientApiTopic
 	}
 	svc := cfg.Rpc.ProxyClientApiTopic
-	if topic, ok := sd.SDM.Endpoints.Load(svc); ok {
+	if topic, ok := sd.SDM.RegisterEndpoints.Load(svc); ok {
 		return topic.(string)
 	}
 	sdClient := sd.SDM.PrepareSDClient(cfg)
 	sd.SDM.Locker.Lock()
 	defer sd.SDM.Locker.Unlock()
-	if topic, ok := sd.SDM.Endpoints.Load(svc); ok {
+	if topic, ok := sd.SDM.RegisterEndpoints.Load(svc); ok {
 		return topic.(string)
 	}
 	topic, err := sdClient.Register(svc, "")
 	if err != nil {
 		log.Panicf("failed to register service[%s]", svc)
 	}
-	sd.SDM.Endpoints.Store(svc, topic)
+	sd.SDM.RegisterEndpoints.Store(svc, topic)
 	log.Infof("succeed to register service[%s]", svc)
 	return topic
 }

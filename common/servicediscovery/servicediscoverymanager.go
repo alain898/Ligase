@@ -12,10 +12,11 @@ const (
 )
 
 type SDManager struct {
-	Locker    sync.RWMutex
-	Endpoints sync.Map // key is service string, value is topic string
-	SDClient  *SDClient
-	Role      string
+	Locker            sync.RWMutex
+	RegisterEndpoints sync.Map // concurrent map<service string, topic string>
+	SDClient          *SDClient
+	Role              string
+	WatcherEndpoints  sync.Map // concurrent map<service string, list<topic string>>
 }
 
 func NewSDManager() *SDManager {
