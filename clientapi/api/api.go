@@ -120,7 +120,7 @@ func (c *InternalMsgConsumer) Start() {
 
 func getProxyRpcTopic(cfg *config.Dendrite) string {
 	if sd.SDM.Role == sd.RoleMonolith || sd.SDM.Role == sd.RoleWatcher {
-		// always return cfg.Rpc.ProxyClientApiTopic if it's proxy
+		// always return cfg.Rpc.ProxyClientApiTopic if it's proxy or monolith
 		return cfg.Rpc.ProxyClientApiTopic
 	}
 	svc := cfg.Rpc.ProxyClientApiTopic
