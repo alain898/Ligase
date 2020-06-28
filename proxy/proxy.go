@@ -78,9 +78,23 @@ func SetupProxy(
 	//	log.Panicf("proxy load certs failed, err: %v", err)
 	//}
 
+	setupSDWatcher(base)
+
 	routing.Setup(
 		base.APIMux, *base.Cfg, cache, rpcCli, rsRpcCli, tokenFilter, feddomains, keyDB,
 	)
+}
+
+func setupSDWatcher(base *basecomponent.BaseDendrite) {
+	svc := base.Cfg.Rpc.ProxyClientApiTopic
+	sdClient := sd.SDM.PrepareSDClient(base.Cfg)
+	err := sdClient.Watch(svc, func(endpoints []*sd.Endpoint) {
+		log.Infof("change watched for service[%s] endpoints[%+v]", svc, endpoints)
+		sd.SDM.WatcherEndpoints.Store(svc, endpoints)
+	})
+	if err != nil {
+		log.Panicf("failed to watch service[%s] err[%+v]", svc, err)
+	}
 }
 
 func loadCert(ctx context.Context, keyDB model.KeyDatabase) error {

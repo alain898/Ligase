@@ -31,6 +31,7 @@ import (
 	"github.com/finogeeks/ligase/common/config"
 	"github.com/finogeeks/ligase/common/filter"
 	"github.com/finogeeks/ligase/common/jsonerror"
+	sd "github.com/finogeeks/ligase/common/servicediscovery"
 	"github.com/finogeeks/ligase/common/uid"
 	"github.com/finogeeks/ligase/core"
 	"github.com/finogeeks/ligase/model/authtypes"
@@ -291,6 +292,7 @@ func (w *HttpProcessor) getTopicByRoomId(service string, coder core.Coder) strin
 		return service
 	}
 	// todo: getTopicByRoomId
+
 	return ""
 }
 
