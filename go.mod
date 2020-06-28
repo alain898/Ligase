@@ -36,7 +36,6 @@ require (
 	go.uber.org/atomic v1.6.0
 	go.uber.org/multierr v1.5.0
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
-	golang.org/x/tools v0.0.0-20191029190741-b9c20aec41a5
 	google.golang.org/appengine v1.6.6 // indirect
 	gopkg.in/confluentinc/confluent-kafka-go.v1 v1.1.0
 	gopkg.in/macaroon.v2 v2.1.0

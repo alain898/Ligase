@@ -34,6 +34,7 @@ import (
 	"github.com/finogeeks/ligase/skunkworks/log"
 	"github.com/finogeeks/ligase/storage/model"
 
+	sd "github.com/finogeeks/ligase/common/servicediscovery"
 	// "io/ioutil"
 	"sync"
 )
@@ -51,6 +52,7 @@ func SetupProxy(
 	rsRpcCli roomserverapi.RoomserverRPCAPI,
 	tokenFilter *filter.SimpleFilter,
 ) {
+	sd.SDM.SetRole(sd.RoleWatcher)
 	bridge.SetupBridge(base.Cfg)
 
 	tokenFilterConsumer := consumers.NewFilterTokenConsumer(rpcCli, tokenFilter)
