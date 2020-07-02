@@ -39,7 +39,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"gopkg.in/yaml.v2"
 
-	log "github.com/finogeeks/ligase/skunkworks/log"
+	"github.com/finogeeks/ligase/skunkworks/log"
 	jaegerconfig "github.com/uber/jaeger-client-go/config"
 	jaegermetrics "github.com/uber/jaeger-lib/metrics"
 )
@@ -161,6 +161,7 @@ type Dendrite struct {
 			DeviceStateUpdate  ProducerConf `yaml:"output_device_state_update"`
 			SettingUpdate      ProducerConf `yaml:"setting_update"`
 			UserInfoUpdate     ProducerConf `yaml:"user_info_update"`
+			DismissRoom        ProducerConf `yaml:"dismiss_room"`
 		} `yaml:"producers"`
 		Consumer struct {
 			OutputRoomEventPublicRooms   ConsumerConf `yaml:"output_room_event_publicroom"`    // OutputRoomEventPublicRooms "public-rooms",
@@ -183,6 +184,7 @@ type Dendrite struct {
 			SetttngUpdateProxy         ConsumerConf `yaml:"setting_update_proxy"`
 			SettingUpdateContent       ConsumerConf `yaml:"setting_update_content"`
 			DownloadMedia              ConsumerConf `yaml:"download_media"`
+			DismissRoom                ConsumerConf `yaml:"dismiss_room"`
 		} `yaml:"consumers"`
 	} `yaml:"kafka"`
 
