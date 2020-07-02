@@ -215,7 +215,7 @@ func createRoom(ctx context.Context, r *external.PostCreateRoomRequest,
 	federate := false
 	fed, ok := r.CreationContent["m.federate"]
 	if ok {
-		federate = fed.(bool)
+		federate, _ = fed.(bool)
 	}
 	//r.CreationContent["m.federate"] = federate
 	//r.CreationContent["creator"] = userID
@@ -265,6 +265,18 @@ func createRoom(ctx context.Context, r *external.PostCreateRoomRequest,
 		createContent.RoomType = &val
 	}
 
+	mapVal, ok = r.CreationContent["is_organization_room"]
+	if ok {
+		val := mapVal.(bool)
+		createContent.IsOrganizationRoom = &val
+	}
+
+	mapVal, ok = r.CreationContent["is_group_room"]
+	if ok {
+		val := mapVal.(bool)
+		createContent.IsGroupRoom = &val
+	}
+
 	eventsToMake := []external.StateEvent{
 		{Type: "m.room.create", Content: createContent},
 		{Type: "m.room.member", StateKey: userID, Content: membershipContent},
@@ -286,6 +298,9 @@ func createRoom(ctx context.Context, r *external.PostCreateRoomRequest,
 	}
 	if r.Topic != "" {
 		eventsToMake = append(eventsToMake, external.StateEvent{Type: "m.room.topic", Content: common.TopicContent{Topic: r.Topic}})
+	}
+	if r.Desc != "" {
+		eventsToMake = append(eventsToMake, external.StateEvent{Type: "m.room.desc", Content: common.DescContent{Desc: r.Desc}})
 	}
 	if roomAlias != "" {
 		eventsToMake = append(eventsToMake, external.StateEvent{Type: "m.room.aliases", StateKey: domainID, Content: common.AliasesContent{Aliases: []string{roomAlias}}})
