@@ -17,6 +17,9 @@ package routing
 import (
 	"context"
 	"errors"
+	"github.com/finogeeks/ligase/common/config"
+	"github.com/finogeeks/ligase/common/uid"
+	"github.com/finogeeks/ligase/storage/model"
 	"net/http"
 
 	"github.com/finogeeks/ligase/clientapi/httputil"
@@ -179,5 +182,58 @@ func QueryRoomInfo(ctx context.Context, roomID string, rpcCli roomserverapi.Room
 	}
 	roomInfo.JoinMembers = joinMembers
 
+	if queryRes.Topic != nil {
+		topicContent := common.TopicContent{}
+		if err = json.Unmarshal(queryRes.Topic.Content(), &topicContent); err != nil {
+			log.Errorf("QueryRoomInfo unparsable room topic content roomID:%s error %v", roomID, err)
+		} else {
+			roomInfo.Topic = topicContent.Topic
+		}
+	}
+
+	powerLevels, _ := queryRes.PowerLevels()
+	if powerLevels != nil {
+		roomInfo.PowerLevels = (jsonRaw.RawMessage)(powerLevels.Content())
+	}
+
 	return roomInfo, nil
+}
+
+func DismissRoom(
+	ctx context.Context, req *external.DismissRoomRequest, accountDB model.AccountsDatabase,
+	ownerID, deviceID, roomID string,
+	cfg config.Dendrite,
+	rpcCli roomserverapi.RoomserverRPCAPI,
+	federation *fed.Federation,
+	cache service.Cache,
+	idg *uid.UidGenerator,
+	complexCache *common.ComplexCache,
+) (int, core.Coder) {
+	msg := external.PostRoomsMembershipRequest{}
+	msg.Membership = "dismiss"
+	msg.RoomID = req.RoomID
+	msg.Content = []byte("kick")
+	res, _ := SendMembership(ctx, &msg, accountDB, ownerID, deviceID, roomID, "dismiss", cfg, rpcCli, federation, cache, idg, complexCache)
+	if res != http.StatusOK {
+		return res, nil
+	}
+	var queryRes roomserverapi.QueryRoomStateResponse
+	var queryReq roomserverapi.QueryRoomStateRequest
+	queryReq.RoomID = roomID
+	err := rpcCli.QueryRoomState(ctx, &queryReq, &queryRes)
+	if err != nil {
+		return httputil.LogThenErrorCtx(ctx, err)
+	}
+	log.Infof("```````````````````dismissRoomConsumer, roomid: %s, join: %d, invites: %d", roomID, len(queryRes.Join), len(queryRes.Invite))
+	if err := common.GetTransportMultiplexer().SendWithRetry(
+		cfg.Kafka.Producer.DismissRoom.Underlying,
+		cfg.Kafka.Producer.DismissRoom.Name,
+		&core.TransportPubMsg{
+			Keys: []byte(roomID),
+			Obj:  req,
+		}); err != nil {
+		return httputil.LogThenErrorCtx(ctx, err)
+	}
+	return http.StatusOK, &external.DismissRoomResponse{}
+
 }
