@@ -16,6 +16,7 @@ package entry
 
 import (
 	"context"
+	"github.com/finogeeks/ligase/roomserver/consumers"
 	"time"
 
 	"github.com/finogeeks/ligase/adapter"
@@ -60,9 +61,11 @@ func StartFrontServer(base *basecomponent.BaseDendrite, cmd *serverCmdPar) {
 	addProducer(transportMultiplexer, kafka.Producer.OutputRoomFedEvent)
 	addProducer(transportMultiplexer, kafka.Producer.SettingUpdate)
 	addProducer(transportMultiplexer, kafka.Producer.UserInfoUpdate)
+	addProducer(transportMultiplexer, kafka.Producer.DismissRoom)
 
 	addConsumer(transportMultiplexer, kafka.Consumer.OutputRoomEventPublicRooms, 0)
 	addConsumer(transportMultiplexer, kafka.Consumer.InputRoomEvent, 0)
+	addConsumer(transportMultiplexer, kafka.Consumer.DismissRoom, 0)
 
 	for _, v := range dbUpdateProducerName {
 		dbUpdates := kafka.Producer.DBUpdates
@@ -96,6 +99,20 @@ func StartFrontServer(base *basecomponent.BaseDendrite, cmd *serverCmdPar) {
 
 	complexCache := common.NewComplexCache(accountDB, cache)
 	complexCache.SetDefaultAvatarURL(base.Cfg.DefaultAvatar)
+
+	consumer := consumers.NewDismissRoomConsumer(
+		kafka.Consumer.DismissRoom.Underlying,
+		kafka.Consumer.DismissRoom.Name,
+		rsRpcCli,
+		cache,
+		accountDB,
+		base.Cfg,
+		newFederation,
+		complexCache,
+		idg)
+	if err := consumer.Start(); err != nil {
+		log.Panicf("failed to start settings consumer err:%v", err)
+	}
 
 	pushapi.SetupPushAPIComponent(base, cache, rpcClient)
 	encryptDB := encryptoapi.SetupEncryptApi(base, cache, rpcClient, federation, idg)
