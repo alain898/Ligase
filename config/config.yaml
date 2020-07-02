@@ -119,6 +119,10 @@ kafka:
             topic: userInfoUpdate
             underlying: kafka
             name: userInfoUpdateProd
+        dismiss_room:
+            topic: dismissRoom
+            underlying: kafka
+            name: dismissRoomProd
     consumers:
         output_room_event_publicroom:
             topic: roomserverOutput
@@ -215,6 +219,11 @@ kafka:
             group: downloadmedia-fed
             underlying: kafka
             name: fedDownloadMediaCons
+        dismiss_room:
+            topic: dismissRoom
+            group: dismissRoom-fed
+            underlying: kafka
+            name: dismissRoomProd
 rpc:
     rs_qry_topic: roomserver_query
     alias_topic: roomserver_alias
