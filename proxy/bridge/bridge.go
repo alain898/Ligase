@@ -83,8 +83,7 @@ func (b *Bridge) processRequest(gobMsg *model.GobMessage) error {
 	if gobMsg.Key == nil {
 		keys = []byte{}
 	}
-
-	return common.GetTransportMultiplexer().SendWithRetry(
+	return common.GetTransportMultiplexer().SendAndRecvWithRetry(
 		prod.Underlying,
 		prod.Name,
 		&core.TransportPubMsg{
