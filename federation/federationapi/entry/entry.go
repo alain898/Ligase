@@ -31,7 +31,7 @@ import (
 	"github.com/finogeeks/ligase/model/service"
 	"github.com/finogeeks/ligase/model/service/publicroomsapi"
 	"github.com/finogeeks/ligase/model/service/roomserverapi"
-	log "github.com/finogeeks/ligase/skunkworks/log"
+	"github.com/finogeeks/ligase/skunkworks/log"
 	dbmodel "github.com/finogeeks/ligase/storage/model"
 )
 
@@ -53,6 +53,7 @@ var (
 	rpcClient      *common.RpcClient
 	encryptionDB   dbmodel.EncryptorAPIDatabase
 	complexCache   *common.ComplexCache
+	rsRepo         *modelRepos.RoomServerCurStateRepo
 )
 
 func Register(cmd model.Command, f FedApiEntryCB) {
@@ -120,4 +121,8 @@ func SetEncryptionDB(db dbmodel.EncryptorAPIDatabase) {
 
 func SetComplexCache(cache *common.ComplexCache) {
 	complexCache = cache
+}
+
+func SetRepo(repo *modelRepos.RoomServerCurStateRepo) {
+	rsRepo = repo
 }
