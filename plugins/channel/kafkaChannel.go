@@ -26,7 +26,7 @@ import (
 	"github.com/finogeeks/ligase/adapter"
 	"github.com/finogeeks/ligase/common"
 	"github.com/finogeeks/ligase/core"
-	log "github.com/finogeeks/ligase/skunkworks/log"
+	"github.com/finogeeks/ligase/skunkworks/log"
 
 	// "github.com/confluentinc/confluent-kafka-go/kafka"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
@@ -398,9 +398,15 @@ func (c *KafkaChannel) preStartProducer(broker string, statsInterval int) error 
 			return err
 		}
 		pc := kafka.ConfigMap{
-			"bootstrap.servers":       broker,
-			"go.produce.channel.size": 10000,
-			"go.batch.producer":       false,
+			"bootstrap.servers":        broker,
+			"go.produce.channel.size":  10000,
+			"go.batch.producer":        false,
+			"socket.timeout.ms":        5000,
+			"session.timeout.ms":       5000,
+			"reconnect.backoff.max.ms": 5000,
+			"default.topic.config": kafka.ConfigMap{
+				"message.timeout.ms": 6000,
+			},
 		}
 		if adapter.GetKafkaEnableIdempotence() {
 			pc.SetKey("enable.idempotence", true)
@@ -611,7 +617,6 @@ func (c *KafkaChannel) pubWithKey(topic string, keys, bytes []byte,
 }
 
 func (c *KafkaChannel) pubSync(msg kafka.Message, deliveryChan chan kafka.Event, result chan error) {
-	ticker := time.NewTimer(time.Duration(DefaultTimeOut) * time.Second)
 	bs := time.Now().UnixNano() / 1000000
 	err := c.producer.Produce(&msg, deliveryChan)
 	if err != nil {
@@ -622,12 +627,11 @@ func (c *KafkaChannel) pubSync(msg kafka.Message, deliveryChan chan kafka.Event,
 	}
 	for {
 		select {
-		//函数阻塞在：e := <-deliveryChan，直到broker有返回
+		//函数阻塞在：e := <-deliveryChan，直到broker有返回或reconnect超时
 		case e := <-deliveryChan:
 			spend := time.Now().UnixNano()/1000000 - bs
 			m := e.(*kafka.Message)
 			if m.TopicPartition.Error != nil {
-				ticker.Stop()
 				//logger.GetLogger().Errorf("sync Failed to delivery topic:%s partition:%d msg:%s err:%s", *m.TopicPartition.Topic, m.TopicPartition.Partition, string(m.Value), m.TopicPartition.Error.Error())
 				//kafka异常报此错误时，需要重试，不重试会造成丢消息, 由配置确定是程序自动重试还是由调用者重试
 				if retry, retries := c.pubRetry(&msg); retry {
@@ -647,9 +651,6 @@ func (c *KafkaChannel) pubSync(msg kafka.Message, deliveryChan chan kafka.Event,
 				result <- nil
 				return
 			}
-		//超时还没有应答，kafka全部挂掉的情况下会出现，kafka恢复正常后会返回 m.TopicPartition.Error，此处仅打印错误日志
-		case <-ticker.C:
-			log.Errorf("sync Delivery msg:%s to topic:%s failed not response timeout", string(msg.Value), *msg.TopicPartition.Topic)
 		}
 	}
 }
