@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -55,6 +57,7 @@ type FedApiUserData struct {
 	CacheIn    service.Cache
 	KeyDB      dmodel.KeyDatabase
 	LocalCache service.LocalCache
+	Origin     string
 }
 
 func genMsgSeq(idg *uid.UidGenerator) string {
@@ -370,7 +373,7 @@ func (ReqPutFedSend) Process(ctx context.Context, ud interface{}, msg core.Coder
 
 	//only for debug
 	if adapter.GetDebugLevel() == adapter.DEBUG_LEVEL_DEBUG {
-		delay := adapter.Random(0, 10)
+		delay := math.Max(0, 11-math.Pow(float64(rand.Intn(200)), 1/1.5))
 		log.Debugf("fed recv transationID:%s sleep %ds", req.TxnID, delay)
 		time.Sleep(time.Duration(delay) * time.Second)
 	}
@@ -387,7 +390,7 @@ func (ReqPutFedSend) Process(ctx context.Context, ud interface{}, msg core.Coder
 
 	prod := ud.(*FedApiUserData).Cfg.Kafka.Producer.FedBridgeOut
 
-	err = common.GetTransportMultiplexer().SendWithRetry(
+	err = common.GetTransportMultiplexer().SendAndRecvWithRetry(
 		prod.Underlying,
 		prod.Name,
 		&core.TransportPubMsg{
@@ -604,6 +607,7 @@ func (ReqGetFedBackfill) Process(ctx context.Context, ud interface{}, msg core.C
 	backfill.BackFillIds = eventID
 	backfill.Dir = dir
 	backfill.Domain = req.Domain
+	backfill.Origin = ud.(*FedApiUserData).Origin
 	body, _ := backfill.Encode()
 	gobMsg.Body = body
 
