@@ -253,7 +253,7 @@ func (d *Database) CheckDevice(
 func (d *Database) LoadSimpleFilterData(ctx context.Context, f *filter.SimpleFilter) bool {
 	offset := 0
 	finish := false
-	limit := 500
+	limit := 1000
 	for {
 		if finish {
 			return true
