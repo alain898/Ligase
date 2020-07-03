@@ -123,23 +123,23 @@ const selectEventsSQL = "" +
 
 const selectEventForwardSQL = "" +
 	"SELECT id, event_json, origin_server_ts, type FROM syncapi_output_room_events" +
-	" WHERE room_id = $1 AND origin_server_ts >= $2" +
-	" ORDER BY origin_server_ts ASC, depth ASC, domain ASC, id ASC LIMIT $3"
+	" WHERE room_id = $1 AND id >= $2" +
+	" ORDER BY id ASC, origin_server_ts ASC, depth ASC, domain ASC LIMIT $3"
 
 const selectEventBackSQL = "" +
 	"SELECT id, event_json, origin_server_ts, type FROM syncapi_output_room_events" +
-	" WHERE room_id = $1 AND  origin_server_ts <= $2" +
-	" ORDER BY origin_server_ts DESC, depth DESC, domain DESC,id DESC LIMIT $3"
+	" WHERE room_id = $1 AND  id <= $2" +
+	" ORDER BY id DESC, origin_server_ts ASC, depth ASC, domain ASC LIMIT $3"
 
 const selectEventRangeForwardSQL = "" +
 	"SELECT id, event_json, origin_server_ts, type FROM syncapi_output_room_events" +
-	" WHERE room_id = $1 AND origin_server_ts >= $2 AND origin_server_ts <= $3" +
-	" ORDER BY origin_server_ts ASC, depth ASC, domain ASC, id ASC"
+	" WHERE room_id = $1 AND id >= $2 AND id <= $3" +
+	" ORDER BY id ASC, origin_server_ts ASC, depth ASC, domain ASC"
 
 const selectEventRangeBackSQL = "" +
 	"SELECT id, event_json, origin_server_ts, type FROM syncapi_output_room_events" +
-	" WHERE room_id = $1 AND origin_server_ts <= $2 AND origin_server_ts >= $3" +
-	" ORDER BY origin_server_ts DESC, depth DESC, domain DESC,id DESC"
+	" WHERE room_id = $1 AND id <= $2 AND id >= $3" +
+	" ORDER BY id DESC, origin_server_ts ASC, depth ASC, domain ASC"
 
 const updateEventSQL = "" +
 	"UPDATE syncapi_output_room_events SET event_json = $1 WHERE event_id = $2 and room_id= $3"
