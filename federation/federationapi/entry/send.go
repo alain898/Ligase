@@ -169,6 +169,7 @@ func Send(ctx context.Context, msg *model.GobMessage, cache service.Cache, rpcCl
 			rawEvent.Kind = roomserverapi.KindNew
 			rawEvent.BulkEvents.Events = pdus
 			rawEvent.Trust = true
+			rawEvent.RoomID = roomID
 			rpcCli.InputRoomEvents(ctx, &rawEvent)
 
 			lastOffset := pdus[len(pdus)-1].DomainOffset()
