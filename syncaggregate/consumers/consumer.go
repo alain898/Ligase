@@ -20,6 +20,8 @@ package consumers
 import (
 	"context"
 	"github.com/finogeeks/ligase/adapter"
+	"math"
+	"math/rand"
 	"time"
 
 	"github.com/finogeeks/ligase/plugins/message/external"
@@ -125,7 +127,7 @@ func (s *EventFeedConsumer) onInsertUserTimeLine(ctx context.Context, data *UtlC
 	offset, _ := s.userTimeLine.Idg.Next()
 	//only for debug
 	if adapter.GetDebugLevel() == adapter.DEBUG_LEVEL_DEBUG {
-		delay := adapter.Random(0, 10)
+		delay := math.Max(0, 11-math.Pow(float64(rand.Intn(200)), 1/1.5))
 		log.Infof("roomId:%s offset:%d event_id:%s user:%s sleep %ds", data.ev.RoomID, offset, data.ev.EventID, data.user, delay)
 		time.Sleep(time.Duration(delay) * time.Second)
 	}
