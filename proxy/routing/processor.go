@@ -74,7 +74,7 @@ func NewHttpProcessor(
 	histogram mon.LabeledHistogram,
 	feddomains *common.FedDomains,
 	keyDB model.KeyDatabase,
-	// counter mon.LabeledCounter,
+// counter mon.LabeledCounter,
 ) *HttpProcessor {
 	localCache := new(cache.LocalCacheRepo)
 	localCache.Start(1, cfg.Cache.DurationDefault)
@@ -241,6 +241,7 @@ func (w *HttpProcessor) Route(path, metricsName, topic string, msgType int32, ap
 					CacheIn:    w.cacheIn,
 					KeyDB:      w.keyDB,
 					LocalCache: w.localCache,
+					Origin:     origin,
 				}
 				span, ctx := common.StartSobSomSpan(context.Background(), "MakeFedAPI")
 				defer span.Finish()
