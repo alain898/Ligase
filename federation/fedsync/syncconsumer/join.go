@@ -22,7 +22,7 @@ import (
 	"github.com/finogeeks/ligase/model/service/roomserverapi"
 	"github.com/finogeeks/ligase/plugins/message/external"
 	"github.com/finogeeks/ligase/skunkworks/gomatrixserverlib"
-	log "github.com/finogeeks/ligase/skunkworks/log"
+	"github.com/finogeeks/ligase/skunkworks/log"
 )
 
 func MakeJoin(
@@ -62,7 +62,7 @@ func SendJoin(
 		log.Errorf("federation send join error response: %v", err)
 	}
 	if len(redResp.StateEvents) > 0 {
-		proc.AddRequest(ctx, redResp.StateEvents, false) // TODO: false是因为自动邀请时有可能需要历史消息，这是临时解决方案，看以后有没有更好的处理
+		proc.AddRequest(ctx, redResp.StateEvents, false)
 	}
 	return redResp
 }
