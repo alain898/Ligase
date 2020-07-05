@@ -355,9 +355,9 @@ func (r ReqGetRoomMessages) selectFromDB(
 	)
 
 	if limit > 0 {
-		events, offsets, _, err, endPos, endTs = c.db.SelectEventsByDir(ctx, userId, roomID, dir, fromTs, limit*2)
+		events, offsets, _, err, endPos, endTs = c.db.SelectEventsByDir(ctx, userId, roomID, dir, fromPos, limit*2)
 	} else {
-		events, offsets, _, err, endPos, endTs = c.db.SelectEventsByDirRange(ctx, userId, roomID, dir, fromTs, toTs)
+		events, offsets, _, err, endPos, endTs = c.db.SelectEventsByDirRange(ctx, userId, roomID, dir, fromPos, toTs)
 	}
 	if err != nil {
 		return
