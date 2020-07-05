@@ -673,7 +673,7 @@ func (s *SyncServer) buildRoomJoinResp(ctx context.Context, req *syncapitypes.Sy
 
 	feeds, start, end, low, up := history.GetAllFeedsReverse()
 
-	log.Infof("SyncServer buildRoomJoinResp traceid:%s roomID:%s user:%s device:%s load room-timeline start:%d end:%d low:%d up:%d", req.TraceID, roomID, req.UserID, req.DeviceID, start, end, low, up)
+	log.Infof("SyncServer buildRoomJoinResp traceid:%s roomID:%s user:%s device:%s load room-timeline start:%d end:%d low:%d up:%d len(feeds):%d", req.TraceID, roomID, req.UserID, req.DeviceID, start, end, low, up, len(feeds))
 
 	firstTimeLine := int64(-1)
 	firstTs := int64(-1)
@@ -721,7 +721,9 @@ func (s *SyncServer) buildRoomJoinResp(ctx context.Context, req *syncapitypes.Sy
 		feed := feeds[i]
 		if feed != nil {
 			stream := feed.(*feedstypes.StreamEvent)
+			log.Infof("only for test SyncServer.buildRoomJoinResp traceid:%s roomID:%s user:%s device:%s, offset:%d", req.TraceID, roomID, req.UserID, req.DeviceID, stream.GetOffset())
 			if stream.GetOffset() < reqStart {
+				log.Infof("SyncServer.buildRoomJoinResp traceid:%s roomID:%s user:%s device:%s break offset:%d", req.TraceID, roomID, req.UserID, req.DeviceID, stream.GetOffset())
 				break
 			}
 
@@ -761,6 +763,8 @@ func (s *SyncServer) buildRoomJoinResp(ctx context.Context, req *syncapitypes.Sy
 								req.TraceID, roomID, req.UserID, req.DeviceID, stream.GetEv().EventID, stream.GetEv().EventNID, idx)
 						}
 					}
+				} else {
+					log.Infof("SyncServer.buildRoomJoinResp traceid:%s roomID:%s user:%s device:%s skip event offset:%d for visibity", req.TraceID, roomID, req.UserID, req.DeviceID, stream.GetOffset())
 				}
 			}
 
@@ -770,6 +774,7 @@ func (s *SyncServer) buildRoomJoinResp(ctx context.Context, req *syncapitypes.Sy
 				} else {
 					jr.Timeline.Limited = false
 				}
+				log.Infof("SyncServer.buildRoomJoinResp traceid:%s break roomID:%s user:%s device:%s limit:%s eventType:%s stream.Offset:%d minStream:%d", req.TraceID, roomID, req.UserID, req.DeviceID, stream.Offset, minStream)
 				break
 			}
 
@@ -778,7 +783,7 @@ func (s *SyncServer) buildRoomJoinResp(ctx context.Context, req *syncapitypes.Sy
 			history.Console()
 		}
 	}
-
+	log.Infof("SyncServer.buildRoomJoinResp traceid:%s before sort buildJoinRoomResp user:%s room:%s firsttimeLine:%d get msgevent len:%d firstTimeLine:%d", req.TraceID, req.UserID, roomID, firstTimeLine, len(msgEvent), firstTimeLine)
 	for i := 0; i < len(msgEvent)/2; i++ {
 		tmp := msgEvent[i]
 		msgEvent[i] = msgEvent[len(msgEvent)-i-1]
