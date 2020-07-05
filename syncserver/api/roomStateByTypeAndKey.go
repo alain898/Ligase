@@ -45,8 +45,10 @@ func (ReqGetRoomStateByTypeAndKey) GetAPIType() int8 { return apiconsumer.APITyp
 func (ReqGetRoomStateByTypeAndKey) GetMethod() []string {
 	return []string{http.MethodGet, http.MethodOptions}
 }
-func (ReqGetRoomStateByTypeAndKey) GetTopic(cfg *config.Dendrite) string { return getProxyRpcTopic(cfg) }
-func (ReqGetRoomStateByTypeAndKey) GetPrefix() []string                  { return []string{"r0"} }
+func (ReqGetRoomStateByTypeAndKey) GetTopic(cfg *config.Dendrite) string {
+	return getProxyRpcTopic(cfg)
+}
+func (ReqGetRoomStateByTypeAndKey) GetPrefix() []string { return []string{"r0"} }
 func (ReqGetRoomStateByTypeAndKey) NewRequest() core.Coder {
 	return new(external.GetRoomStateByTypeAndStateKeyRequest)
 }
