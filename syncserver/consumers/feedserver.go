@@ -262,6 +262,7 @@ func (s *RoomEventFeedConsumer) onNewRoomEvent(
 		s.receiptDataStreamRepo.LoadHistory(ctx, ev.RoomID, false)
 		preOffset := s.roomHistoryTimeLine.GetDomainMaxStream(ctx, ev.RoomID, domain)
 		if preOffset != -1 && preOffset+1 != ev.DomainOffset {
+			log.Infof("feedserver onNewRoomEvent SetRoomMinStream roomID:%s preOffset:%d domainOffset:%d eventOffset:%d", ev.RoomID, preOffset, ev.DomainOffset, ev.EventOffset)
 			s.roomHistoryTimeLine.SetRoomMinStream(ev.RoomID, ev.EventOffset)
 		}
 		spend := time.Now().UnixNano()/1000000 - bs
@@ -479,6 +480,7 @@ func (s *RoomEventFeedConsumer) onBackFillEvent(
 	domain, _ := common.DomainFromID(ev.Sender)
 	preOffset := s.roomHistoryTimeLine.GetDomainMaxStream(ctx, ev.RoomID, domain)
 	if preOffset <= ev.DomainOffset {
+		log.Infof("feedserver onBackFillEvent SetRoomMinStream roomID:%s preOffset:%d domainOffset:%d eventOffset:%d", ev.RoomID, preOffset, ev.DomainOffset, ev.EventOffset)
 		s.roomHistoryTimeLine.SetRoomMinStream(ev.RoomID, ev.EventOffset)
 	}
 
