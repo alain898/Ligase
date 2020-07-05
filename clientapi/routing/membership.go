@@ -59,7 +59,7 @@ func SendMembership(
 	traceId := fmt.Sprintf("%d", tid)
 	log.Infof("------- traceId:%s handle SendMembership QueryRoomState send room %s membership:%s user:%s", traceId, roomID, membership, userID)
 	var body threepid.MembershipRequest
-	if membership != "leave" && len(r.Content) > 0 {
+	if membership != "leave" && membership != "dismiss" && len(r.Content) > 0 {
 		if err := json.Unmarshal(r.Content, &body); err != nil {
 			log.Errorf("------- traceId:%s handle SendMembership The request body could not be decoded into valid JSON room %s membership:%s user:%s", traceId, roomID, membership, userID)
 			return http.StatusBadRequest, jsonerror.BadJSON("handle SendMembership The request body could not be decoded into valid JSON. " + err.Error())
@@ -79,6 +79,13 @@ func SendMembership(
 		return httputil.LogThenErrorCtx(ctx, err)
 	}
 
+	// on dismiss
+	// userId is the member who dismiss Room
+	// deviceID is the member who should leave the room
+	// TODO, how to ensure get deviceID via userID
+	if membership == "dismiss" {
+		body.UserID = deviceID
+	}
 	// If an invite has been stored on an identity server, it means that a
 	// m.room.third_party_invite event has been emitted and that we shouldn't
 	// emit a m.room.member one.
@@ -171,7 +178,15 @@ func SendMembership(
 			log.Errorf("handle SendMembership traceId:%s membership:%s, kickee:%s aren't a member of the room:%s kicker:%s ", traceId, membership, body.UserID, roomID, userID)
 			return http.StatusForbidden, jsonerror.Forbidden("kickee aren't a member of the room")
 		}
-	} else if membership == "leave" || membership == "dismiss" {
+	} else if membership == "dismiss" {
+		body.UserID = deviceID
+		_, ok1 := queryRes.Join[body.UserID]
+		_, ok2 := queryRes.Invite[body.UserID]
+		if !ok1 && !ok2 {
+			log.Warnf("handle SendMembership traceId:%s membership:%s, dismiss force leave member:%s aren't a member of the room:%s kicker:%s ", traceId, membership, body.UserID, roomID, userID)
+			return http.StatusForbidden, jsonerror.Forbidden("dismiss member aren't in the room")
+		}
+	} else if membership == "leave" {
 		_, ok1 := queryRes.Join[userID]
 		_, ok2 := queryRes.Invite[userID]
 		_, ok3 := queryRes.Leave[userID]
@@ -396,6 +411,12 @@ func buildMembershipEvent(
 		return e, nil
 	}
 
+	// dismiss sender has leaved the room first
+	// just skip auth
+	if rawMemberShip == "dismiss" {
+		return e, nil
+	}
+
 	if err = gomatrixserverlib.Allowed(*e, queryRes); err == nil {
 		if rawMemberShip == "leave" {
 			if plEvent, err := queryRes.PowerLevels(); plEvent != nil {
@@ -448,7 +469,7 @@ func loadProfile(
 func getMembershipStateKey(
 	body threepid.MembershipRequest, userID, membership string,
 ) (stateKey string, reason string, err error) {
-	if membership == "ban" || membership == "unban" || membership == "kick" || membership == "invite" {
+	if membership == "ban" || membership == "unban" || membership == "kick" || membership == "invite" || membership == "dismiss" {
 		// If we're in this case, the state key is contained in the request body,
 		// possibly along with a reason (for "kick" and "ban") so we need to parse
 		// it

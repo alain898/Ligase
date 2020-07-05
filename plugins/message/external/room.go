@@ -14,6 +14,10 @@
 
 package external
 
+import (
+	jsonRaw "encoding/json"
+)
+
 //POST /_matrix/client/r0/createRoom
 type PostCreateRoomRequest struct {
 	Visibility      string                 `json:"visibility"`
