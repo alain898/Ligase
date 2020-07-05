@@ -16,9 +16,11 @@ package routing
 
 import (
 	"context"
+	jsonRaw "encoding/json"
 	"errors"
 	"github.com/finogeeks/ligase/common/config"
 	"github.com/finogeeks/ligase/common/uid"
+
 	"github.com/finogeeks/ligase/storage/model"
 	"net/http"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/finogeeks/ligase/common"
 	"github.com/finogeeks/ligase/common/jsonerror"
 	"github.com/finogeeks/ligase/core"
+	fed "github.com/finogeeks/ligase/federation/fedreq"
 	"github.com/finogeeks/ligase/model/service"
 	"github.com/finogeeks/ligase/model/service/roomserverapi"
 	"github.com/finogeeks/ligase/plugins/message/external"
@@ -209,22 +212,34 @@ func DismissRoom(
 	idg *uid.UidGenerator,
 	complexCache *common.ComplexCache,
 ) (int, core.Coder) {
+	var queryRes roomserverapi.QueryRoomStateResponse
+	var queryReq roomserverapi.QueryRoomStateRequest
+	queryReq.RoomID = roomID
+	if err := rpcCli.QueryRoomState(ctx, &queryReq, &queryRes); err != nil {
+		return httputil.LogThenErrorCtx(ctx, err)
+	}
+	if plEvent, err := queryRes.PowerLevels(); plEvent != nil {
+		plContent := common.PowerLevelContent{}
+		if err = json.Unmarshal(plEvent.Content(), &plContent); err != nil {
+			log.Errorf("DismissRoom unparsable powerlevel event content user %s roomID:%s error %v", ownerID, roomID, err)
+			return http.StatusForbidden, jsonerror.Forbidden(err.Error())
+		}
+		if power, ok := plContent.Users[ownerID]; !ok || power != 100 {
+			log.Errorf("DismissRoom must be administrator user %s roomID:%s", ownerID, roomID)
+			return http.StatusForbidden, jsonerror.Forbidden("non-administrator is not allowed to dismiss room")
+		}
+	}
 	msg := external.PostRoomsMembershipRequest{}
 	msg.Membership = "dismiss"
 	msg.RoomID = req.RoomID
 	msg.Content = []byte("kick")
-	res, _ := SendMembership(ctx, &msg, accountDB, ownerID, deviceID, roomID, "dismiss", cfg, rpcCli, federation, cache, idg, complexCache)
+	// sender leaves the room
+	res, _ := SendMembership(ctx, &msg, accountDB, ownerID, ownerID, roomID, "dismiss", cfg, rpcCli, federation, cache, idg, complexCache)
 	if res != http.StatusOK {
 		return res, nil
 	}
-	var queryRes roomserverapi.QueryRoomStateResponse
-	var queryReq roomserverapi.QueryRoomStateRequest
-	queryReq.RoomID = roomID
-	err := rpcCli.QueryRoomState(ctx, &queryReq, &queryRes)
-	if err != nil {
-		return httputil.LogThenErrorCtx(ctx, err)
-	}
-	log.Infof("```````````````````dismissRoomConsumer, roomid: %s, join: %d, invites: %d", roomID, len(queryRes.Join), len(queryRes.Invite))
+	// other members leave the room
+	req.UserID = ownerID
 	if err := common.GetTransportMultiplexer().SendWithRetry(
 		cfg.Kafka.Producer.DismissRoom.Underlying,
 		cfg.Kafka.Producer.DismissRoom.Name,

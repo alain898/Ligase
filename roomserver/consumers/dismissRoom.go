@@ -4,6 +4,7 @@ import (
 	"context"
 	fed "github.com/finogeeks/ligase/federation/fedreq"
 	"github.com/finogeeks/ligase/skunkworks/log"
+	"net/http"
 	"time"
 
 	"github.com/finogeeks/ligase/clientapi/routing"
@@ -80,30 +81,21 @@ func (c *DismissRoomConsumer) OnMessage(ctx context.Context, topic string, parti
 	msg.Membership = "dismiss"
 	msg.RoomID = roomID
 	msg.Content = []byte("kick")
+	// if leave fail , ignore and continue
 	for _, ev := range queryRes.Join {
 		time.Sleep(200)
 		userID := *ev.StateKey()
-		devices := c.cache.GetDevicesByUserID(userID)
-		var deviceID string
-		if len(*devices) == 0 {
-			log.Infof("------- handle DismissRoom leave room fail send room %s user:%s", roomID, userID)
-			continue
-		} else {
-			deviceID = (*devices)[0].ID
+		status, _ := routing.SendMembership(ctx, &msg, c.accountDB, req.UserID, userID, roomID, "dismiss", *c.cfg, c.rpcCli, c.federation, c.cache, c.idg, c.complexCache)
+		if status != http.StatusOK {
+			log.Errorf("DismissRoomConsumer leave fail! skip user:%s, roomID:%s", userID, roomID)
 		}
-		routing.SendMembership(ctx, &msg, c.accountDB, userID, deviceID, roomID, "leave", *c.cfg, c.rpcCli, c.federation, c.cache, c.idg, c.complexCache)
 	}
 	for _, ev := range queryRes.Invite {
 		time.Sleep(200)
 		userID := *ev.StateKey()
-		devices := c.cache.GetDevicesByUserID(userID)
-		var deviceID string
-		if len(*devices) == 0 {
-			log.Infof("------- handle DismissRoom leave room fail send room %s user:%s", roomID, userID)
-			continue
-		} else {
-			deviceID = (*devices)[0].ID
+		status, _ := routing.SendMembership(ctx, &msg, c.accountDB, req.UserID, userID, roomID, "dismiss", *c.cfg, c.rpcCli, c.federation, c.cache, c.idg, c.complexCache)
+		if status != http.StatusOK {
+			log.Errorf("DismissRoomConsumer leave fail! skip user:%s, roomID:%s", userID, roomID)
 		}
-		routing.SendMembership(ctx, &msg, c.accountDB, userID, deviceID, roomID, "leave", *c.cfg, c.rpcCli, c.federation, c.cache, c.idg, c.complexCache)
 	}
 }

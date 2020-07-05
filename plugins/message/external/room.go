@@ -263,6 +263,7 @@ type GetRoomInfo struct {
 // POST /_matrix/client/unstable/{roomID}/dismiss
 type DismissRoomRequest struct {
 	RoomID string `json:"roomID"`
+	UserID string `json:"userID,omitempty"`
 }
 
 type DismissRoomResponse struct {
