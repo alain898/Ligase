@@ -35,7 +35,7 @@ import (
 	"github.com/finogeeks/ligase/skunkworks/gomatrixserverlib"
 	"github.com/finogeeks/ligase/storage/model"
 
-	log "github.com/finogeeks/ligase/skunkworks/log"
+	"github.com/finogeeks/ligase/skunkworks/log"
 	mon "github.com/finogeeks/ligase/skunkworks/monitor/go-client/monitor"
 )
 
@@ -161,13 +161,33 @@ func (r *EventsProcessor) InputRoomEvents(
 	start := time.Now()
 	//n, err := r.processInput(ctx, input)
 	result := make(chan InputResult)
+	if input.TxnID != nil {
+		log.Infof("InputRoomEvents dispatch input txnId:%s", input.TxnID.TransactionID)
+	} else {
+		log.Infof("InputRoomEvents dispatch input")
+	}
+	for _, event := range input.BulkEvents.Events {
+		log.Infof("begin dispatch input room_id:%s event_id:%s domain_offset:%d origin_server_ts:%d depth:%d",
+			event.RoomID(), event.EventID(), event.DomainOffset(), event.OriginServerTS(), event.Depth())
+	}
+
 	r.dispthInput(ctx, input, result)
 	inputResult := <-result
+	for _, event := range input.BulkEvents.Events {
+		log.Infof("after dispatch input room_id:%s event_id:%s domain_offset:%d origin_server_ts:%d depth:%d",
+			event.RoomID(), event.EventID(), event.DomainOffset(), event.OriginServerTS(), event.Depth())
+	}
+	if input.TxnID != nil {
+		log.Infof("InputRoomEvents dispatch input txnId:%s response", input.TxnID.TransactionID)
+	} else {
+		log.Infof("InputRoomEvents dispatch input response")
+	}
 	// monitor report
 	duration := float64(time.Since(start)) / float64(time.Microsecond)
 	if len(input.Query) >= 2 {
 		r.evtProcGauge.WithLabelValues(input.Query[0], input.Query[1], input.RoomID).Set(float64(duration))
 	}
+	log.Infof("roomId:%s len:%v", input.RoomID, input.BulkEvents.Events)
 	//return n, err
 	return inputResult.Num, inputResult.Error
 }
@@ -187,6 +207,12 @@ func (r *EventsProcessor) processInput(
 		}
 		n++
 		//log.Infof("processRoomEvent process %s type %s use %v content:%s", ev.EventID(), ev.Type(), time.Now().Sub(now), bytes)
+	}
+	if len(input.BulkEvents.Events) > 0 && input.BulkEvents.Events[0].Type() == gomatrixserverlib.MRoomCreate {
+		rs := r.Repo.GetRoomState(ctx, input.BulkEvents.Events[0].RoomID())
+		if rs != nil && !rs.IsFlushed() {
+			r.Repo.FlushRoomStateByID(input.BulkEvents.Events[0].RoomID())
+		}
 	}
 	return n, nil
 }
@@ -636,6 +662,9 @@ func (r *EventsProcessor) postProcessNew(
 		log.Infof("postProcessNew FlushRoomState roomid:%s spend %v", event.RoomID(), time.Now().Sub(last))
 	}
 
+	if common.CheckValidDomain(sendDomain, r.Cfg.Matrix.ServerName) && event.OriginServerTS() == 0 {
+		event.SetOriginServerTS(gomatrixserverlib.AsTimestamp(time.Now()))
+	}
 	ore := r.buildOutputRoomEvent(transactionID, sendServer, rs, *event, pre)
 
 	updates = append(updates, roomserverapi.OutputEvent{
@@ -709,7 +738,8 @@ func (r *EventsProcessor) postProcessBackfill(
 	last := time.Now()
 
 	refId, refHash := rs.GetRefs(event)
-
+	log.Infof("postProcessBackfill eventId:%s roomId:%s depth:%d domain_offset:%d ts:%d",
+		event.EventID(), event.RoomID(), event.Depth(), event.DomainOffset(), event.OriginServerTS())
 	log.Debugf("============postProcessBackfill store previous %v", time.Now().Sub(last))
 	last = time.Now()
 
@@ -720,7 +750,8 @@ func (r *EventsProcessor) postProcessBackfill(
 	if err != nil {
 		return err
 	}
-
+	//rs.AllocDomainOffset(event)
+	//event.SetOriginServerTS(gomatrixserverlib.AsTimestamp(time.Now()))
 	ore := roomserverapi.OutputNewRoomEvent{
 		TransactionID: transactionID,
 		SendAsServer:  sendServer,
@@ -737,7 +768,8 @@ func (r *EventsProcessor) postProcessBackfill(
 		NewRoomEvent: &ore,
 	}
 	updates = append(updates, output)
-
+	log.Infof("after update postProcessBackfill eventId:%s roomId:%s depth:%d domain_offset:%d ts:%d event_offset:%d",
+		event.EventID(), event.RoomID(), event.Depth(), event.DomainOffset(), event.OriginServerTS(), ore.Event.EventOffset)
 	//if err := r.DB.SetLatestEvents(roomNID, evnid, curSnap, event.Depth()); err != nil {
 	//	return err
 	//}

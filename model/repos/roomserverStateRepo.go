@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/finogeeks/ligase/adapter"
@@ -86,6 +87,8 @@ type RoomServerState struct {
 	DomainsExport     map[string]*DomainTLItem            `json:"domains"`
 
 	domainTl sync.Map
+	flushed  bool
+	dirt     int32
 	Version  int32 `json:"version"`
 	//change often
 	ext *types.RoomStateExt
@@ -629,6 +632,15 @@ func (rs *RoomServerState) ThirdPartyInvite(stateKey string) (*gomatrixserverlib
 	return nil, nil
 }
 
+func (rs *RoomServerState) IsFlushed() bool {
+	return rs.flushed
+}
+
+func (rs *RoomServerState) IsDirt() bool {
+	dirt := atomic.LoadInt32(&rs.dirt)
+	return dirt == 1
+}
+
 func (rs *RoomServerState) flush(cache service.Cache) {
 	bs := time.Now().UnixNano() / 1000
 	bytes, err := rs.serialize()
@@ -644,8 +656,10 @@ func (rs *RoomServerState) flush(cache service.Cache) {
 }
 
 type RoomServerCurStateRepo struct {
-	persist model.RoomServerDatabase
-	cache   service.Cache
+	roomState sync.Map
+	persist   model.RoomServerDatabase
+	domain    []string
+	cache     service.Cache
 
 	queryHitCounter mon.LabeledCounter
 }
@@ -890,6 +904,13 @@ func (repo *RoomServerCurStateRepo) FlushRoomState(rs *RoomServerState) {
 		return
 	}
 	rs.flush(repo.cache)
+}
+
+func (repo *RoomServerCurStateRepo) FlushRoomStateByID(roomid string) {
+	if val, ok := repo.roomState.Load(roomid); ok {
+		rs := val.(*RoomServerState)
+		rs.flush(repo.cache)
+	}
 }
 
 func (repo *RoomServerCurStateRepo) OnEvent(ctx context.Context, ev *gomatrixserverlib.Event, offset int64, rs *RoomServerState) *RoomServerState {
