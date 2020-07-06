@@ -2011,7 +2011,7 @@ func (ReqInternalGetRoomInfo) NewResponse(code int) core.Coder {
 	return new(external.GetRoomInfoResponse)
 }
 func (ReqInternalGetRoomInfo) GetPrefix() []string { return []string{"inr0"} }
-func (ReqInternalGetRoomInfo) Process(consumer interface{}, msg core.Coder, device *authtypes.Device) (int, core.Coder) {
+func (ReqInternalGetRoomInfo) Process(ctx context.Context, consumer interface{}, msg core.Coder, device *authtypes.Device) (int, core.Coder) {
 	c := consumer.(*InternalMsgConsumer)
 	req := msg.(*external.GetRoomInfoRequest)
 	return routing.OnRoomInfoRequest(context.Background(), device.UserID, req.RoomIDs, c.rsRpcCli, c.cacheIn)
@@ -2321,7 +2321,7 @@ func (ReqDismissRoom) FillRequest(coder core.Coder, req *http.Request, vars map[
 }
 func (ReqDismissRoom) NewResponse(code int) core.Coder { return nil }
 func (ReqDismissRoom) GetPrefix() []string             { return []string{"r0"} }
-func (ReqDismissRoom) Process(consumer interface{}, msg core.Coder, device *authtypes.Device) (int, core.Coder) {
+func (ReqDismissRoom) Process(ctx context.Context, consumer interface{}, msg core.Coder, device *authtypes.Device) (int, core.Coder) {
 	c := consumer.(*InternalMsgConsumer)
 	req := msg.(*external.DismissRoomRequest)
 	userID := device.UserID
