@@ -17,10 +17,10 @@ package entry
 import (
 	"context"
 	"encoding/json"
-	"github.com/finogeeks/ligase/federation/model/repos"
 	"strings"
 
 	"github.com/finogeeks/ligase/federation/client"
+	"github.com/finogeeks/ligase/federation/model/repos"
 	fedmodel "github.com/finogeeks/ligase/federation/storage/model"
 	"github.com/finogeeks/ligase/model"
 	"github.com/finogeeks/ligase/model/service"
@@ -59,21 +59,18 @@ func Invite(ctx context.Context, msg *model.GobMessage, cache service.Cache, rpc
 
 	// TODO: check if can invite user
 
-	log.Infof("invite event: %v", event)
-	log.Infof("invite states: %s", event.Unsigned())
-
 	resp := gomatrixserverlib.RespInvite{}
 	resp.Code = 200
 
 	roomID := event.RoomID()
-	rs := rsRepo.GetRoomStateNoCache(roomID)
+	rs := rsRepo.GetRoomState(ctx, roomID)
 	if rs == nil {
 		log.Infof("invite event: %v", event)
 		log.Infof("invite states: %s", event.Unsigned())
 
 		states := inviteRoomState.States
 		//states = append(states, event)
-		err = backfillProc.AddRequest(states, false)
+		err = backfillProc.AddRequest(ctx, states, false)
 		if err != nil {
 			if strings.Contains(err.Error(), "backfill finished") {
 				resp.Code = 200
@@ -101,7 +98,7 @@ func Invite(ctx context.Context, msg *model.GobMessage, cache service.Cache, rpc
 			resp.Event = event
 
 			var joinedRoomsVal *repos.JoinRoomsData
-			joinedRoomsVal, err = joinRoomsRepo.GetData(event.RoomID())
+			joinedRoomsVal, err = joinRoomsRepo.GetData(ctx, event.RoomID())
 			if err != nil {
 				log.Warnf("api handle send get join rooms err %v", err)
 				retMsg.Body, _ = json.Marshal(&resp)
@@ -113,7 +110,7 @@ func Invite(ctx context.Context, msg *model.GobMessage, cache service.Cache, rpc
 			}
 			joinedRoomsVal.HasJoined = true
 			joinedRoomsVal.EventID = event.EventID()
-			joinRoomsRepo.AddData(joinedRoomsVal)
+			joinRoomsRepo.AddData(ctx, joinedRoomsVal)
 
 			rawEvent := roomserverapi.RawEvent{
 				RoomID: event.RoomID(),

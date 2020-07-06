@@ -338,6 +338,11 @@ func (r *EventsProcessor) processFedInvite(ctx context.Context, event gomatrixse
 	if event.Type() != gomatrixserverlib.MRoomMember || event.StateKey() == nil {
 		return event, nil
 	}
+	sender := event.Sender()
+	senderDomain, _ := common.DomainFromID(sender)
+	if !common.CheckValidDomain(senderDomain, r.Cfg.Matrix.ServerName) {
+		return event, nil
+	}
 	content := map[string]interface{}{}
 	err := json.Unmarshal(event.Content(), &content)
 	if err != nil {

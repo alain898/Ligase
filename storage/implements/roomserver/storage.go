@@ -236,6 +236,10 @@ func (d *Database) BackFillNids(
 	return eventNID, nil
 }
 
+func (d *Database) SelectEventNidForBackfill(ctx context.Context, roomNID int64, domain string) (int64, error) {
+	return d.statements.selectEventNidForBackfill(ctx, roomNID, domain)
+}
+
 func (d Database) SelectRoomEventsByDomainOffset(ctx context.Context, roomNID int64, domain string, domainOffset int64, limit int) ([]int64, error) {
 	return d.statements.selectRoomEventsByDomainOffset(ctx, roomNID, domain, domainOffset, limit)
 }

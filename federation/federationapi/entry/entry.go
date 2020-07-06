@@ -28,6 +28,7 @@ import (
 	"github.com/finogeeks/ligase/federation/config"
 	fedmodel "github.com/finogeeks/ligase/federation/storage/model"
 	"github.com/finogeeks/ligase/model"
+	modelRepos "github.com/finogeeks/ligase/model/repos"
 	"github.com/finogeeks/ligase/model/service"
 	"github.com/finogeeks/ligase/model/service/publicroomsapi"
 	"github.com/finogeeks/ligase/model/service/roomserverapi"
